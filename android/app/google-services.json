@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "86895289380",
+    "project_id": "galexi-eebbe",
+    "storage_bucket": "galexi-eebbe.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:86895289380:android:46d110dca2c6ad9d32e4b1",
+        "android_client_info": {
+          "package_name": "com.example.aurex_messenger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBWEepCPLLtVTmU9PJ_Lnv4P45ZBwem6fQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
