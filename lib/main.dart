@@ -1,16 +1,23 @@
-import 'package:aurex_messenger/login_page.dart';
+import 'dart:convert';
+
+import 'package:Galexi/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 import 'firebase_options.dart';
 import 'home_page.dart';
+
+
+String master_url = "https://vercel-server-ivory-six.vercel.app/";
+
+Map<String, dynamic> contacts = {};
 
 bool isdark = true;
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-
 
 
 Future<void> setupNotificationChannel() async {
@@ -82,10 +89,25 @@ class _MyAppState extends State<MyApp> {
     FirebaseMessaging.instance.requestPermission();
     FirebaseMessaging.instance.getToken().then((token) {});
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      user_contacts();
       print("🔔 Foreground message received");
     });
   }
 
+
+
+////////  refresh contacts //////
+  Future<void> user_contacts() async {
+    final email = await FirebaseAuth.instance.currentUser?.email;
+    final response = await http.get(
+      Uri.parse(master_url + "user_contacts/${email}"),
+    );
+    contacts = jsonDecode(response.body);
+    print(contacts);
+    setState(() {
+      
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
