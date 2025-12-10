@@ -29,27 +29,44 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   ////// logout //////
-  ///
+
   Future<void> signOut() async {
     await GoogleSignIn().signOut();
     await FirebaseAuth.instance.signOut();
   }
 
-  // ////   chatlist widget
+
+///////  mark_msg_seen /////
+
+  Future<void> mark_msg_seen(String other_user) async {
+    final email = await FirebaseAuth.instance.currentUser?.email;
+    final response = await http.patch(
+      Uri.parse(master_url + "mark_msg_seen/${email}/${other_user}"),
+    );
+    await user_contacts();
+    setState(() {
+      
+    });
+  }
+
+
+  //////   chatlist widget  //////
   Widget chat_list(int num) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(4.0),
         child: InkWell(
+          splashFactory: NoSplash.splashFactory,
           splashColor: Theme.of(context).brightness == Brightness.dark
               ? const Color.fromARGB(200, 255, 255, 255)
               : const Color.fromARGB(189, 0, 0, 0),
           borderRadius: BorderRadius.circular(15),
 
-          onTap: () {
+          onTap: () async{
+            mark_msg_seen(contacts["contacts"][num]["id"]);
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ChatPage()),
+              MaterialPageRoute(builder: (context) => ChatPage(index: num,isdark: isdark,)),
             );
           },
 
@@ -155,6 +172,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
+
   @override
   void initState() {
     super.initState();
@@ -175,6 +193,9 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     final isdark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
+      floatingActionButton: FloatingActionButton(elevation: 30,backgroundColor: kSentMessage,foregroundColor: const Color.fromARGB(255, 171, 195, 229),child: Icon(Icons.person_add_alt_1),onPressed: () {
+        print("Onkar");
+      },),
       drawerEdgeDragWidth: 100,
       drawer: SafeArea(
         left: true,

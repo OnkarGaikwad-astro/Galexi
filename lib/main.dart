@@ -10,27 +10,29 @@ import 'package:http/http.dart' as http;
 import 'firebase_options.dart';
 import 'home_page.dart';
 
-
 String master_url = "https://vercel-server-ivory-six.vercel.app/";
 
 Map<String, dynamic> contacts = {};
+Map<String, dynamic> msg_list = {};
 
 bool isdark = true;
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
-
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 
 Future<void> setupNotificationChannel() async {
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'high_importance_channel', 
+    'high_importance_channel',
     'High Importance Notifications',
     description: 'This channel is used for urgent notifications.',
     importance: Importance.high,
   );
-  await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.createNotificationChannel(channel);
+  await flutterLocalNotificationsPlugin
+      .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin
+      >()
+      ?.createNotificationChannel(channel);
 }
-
-
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -51,52 +53,68 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
-
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await setupNotificationChannel();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  runApp(const MyApp());
+  runApp(MyApp());
 }
 
-
+final GlobalKey<_MyAppState> appKey = GlobalKey<_MyAppState>();
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  MyApp() : super(key: appKey);
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
-
-
 class _MyAppState extends State<MyApp> {
-
-
   void toggleTheme() {
     setState(() {
       isdark = !isdark;
     });
   }
 
-
-
   @override
-  
   void initState() {
     super.initState();
+    update_last_seen();
     FirebaseMessaging.instance.requestPermission();
     FirebaseMessaging.instance.getToken().then((token) {});
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       user_contacts();
+      all_chats_list();
       print("🔔 Foreground message received");
     });
   }
 
+  //////   message database initialize /////
+  Future<void> all_chats_list() async {
+    final email = FirebaseAuth.instance.currentUser?.email;
+    final response = await http.get(
+      Uri.parse(master_url + "all_chats/${email}"),
+      headers: {"Content-Type": "application/json"},
+    );
+    msg_list = jsonDecode(response.body);
+    print(msg_list);
+    setState(() {});
+  }
 
 
-////////  refresh contacts //////
+  ////// update user last seen /////
+    Future<void> update_last_seen() async {
+    final email = FirebaseAuth.instance.currentUser?.email;
+    final response = await http.post(
+      Uri.parse(master_url + "update_last_seen/${email}"),
+      headers: {"Content-Type": "application/json"},
+    );
+    print("Last_seen_updated_successfully 📖");
+    print(jsonDecode(response.body));
+    setState(() {});
+  }
+
+  ////////  refresh contacts //////
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;
     final response = await http.get(
@@ -104,10 +122,9 @@ class _MyAppState extends State<MyApp> {
     );
     contacts = jsonDecode(response.body);
     print(contacts);
-    setState(() {
-      
-    });
+    setState(() {});
   }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -116,7 +133,9 @@ class _MyAppState extends State<MyApp> {
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
       title: 'Galexi',
-      home: FirebaseAuth.instance.currentUser!=null?MyHomePage(toggleTheme: toggleTheme,):LoginPage(toggleTheme: toggleTheme,),
+      home: FirebaseAuth.instance.currentUser != null
+          ? MyHomePage(toggleTheme: toggleTheme)
+          : LoginPage(toggleTheme: toggleTheme),
     );
   }
 }
