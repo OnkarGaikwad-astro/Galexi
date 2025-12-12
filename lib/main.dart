@@ -14,6 +14,7 @@ String master_url = "https://vercel-server-ivory-six.vercel.app/";
 
 Map<String, dynamic> contacts = {};
 Map<String, dynamic> msg_list = {};
+Map<String, dynamic> all_users = {};
 
 bool isdark = true;
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
@@ -80,6 +81,7 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     update_last_seen();
+    fetch_all_users();
     FirebaseMessaging.instance.requestPermission();
     FirebaseMessaging.instance.getToken().then((token) {});
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -98,6 +100,17 @@ class _MyAppState extends State<MyApp> {
     );
     msg_list = jsonDecode(response.body);
     print(msg_list);
+    setState(() {});
+  }
+
+  /////  fetch all users //////
+  Future<void> fetch_all_users() async {
+    final response = await http.get(
+      Uri.parse(master_url + "all_users_info"),
+      headers: {"Content-Type": "application/json"},
+    );
+    all_users = jsonDecode(response.body);
+    print(all_users);
     setState(() {});
   }
 

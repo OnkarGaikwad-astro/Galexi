@@ -24,6 +24,7 @@ String temp_msg = "";
 
 class _ChatPageState extends State<ChatPage> {
   @override
+
   ///// fetch chat /////
   Map<String, dynamic> chat = {};
 
@@ -103,6 +104,7 @@ class _ChatPageState extends State<ChatPage> {
 
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         automaticallyImplyLeading: true,
         leading: IconButton(
@@ -141,23 +143,6 @@ class _ChatPageState extends State<ChatPage> {
                       softWrap: true,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Row(
-                      children: [
-                        SizedBox(width: 90),
-                        Text(
-                          "Last seen at : ",
-                          style: TextStyle(fontSize: 7, color: kTextSecondary),
-                        ),
-                        Text(
-                          sender_last_seen,
-                          style: TextStyle(
-                            color: kTextSecondary,
-                            fontSize: 6,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
                 ),
               ),
@@ -166,6 +151,16 @@ class _ChatPageState extends State<ChatPage> {
         ),
         actions: [
           PopupMenuButton(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadiusGeometry.circular(15),
+              side: BorderSide(color: const Color.fromARGB(255, 255, 255, 255)),
+            ),
+            enabled: true,
+            popUpAnimationStyle: AnimationStyle(
+              duration: Duration(milliseconds: 100),
+            ),
+
+            menuPadding: EdgeInsets.all(1),
             onSelected: (value) async {
               if (value == "clear") {
                 await clear_chat();
@@ -184,20 +179,26 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               SizedBox(height: 20),
               Expanded(
-                child: ListView(
-                  reverse: false,
-                  children:
+                child: ListView.builder(
+                  reverse: true, 
+                  itemCount:
                       (chat["message_count"] == null ||
                           chat["message_count"] == 0)
-                      ? [Lottie.asset("assets/lotties/paperplane.json")]
-                      : List.generate(
-                          chat["message_count"],
-                          (index) => (index != 0)
-                              ? (chat["messages"][index]["user_sent"] == "no"
-                                    ? recieved_msg(index)
-                                    : sended_msg(index))
-                              : SizedBox.shrink(),
-                        ),
+                      ? 1
+                      : chat["message_count"] - 1, 
+                  itemBuilder: (context, index) {
+                    if (chat["message_count"] == null ||
+                        chat["message_count"] == 0) {
+                      return Center(
+                        child: Lottie.asset("assets/lotties/paperplane.json"),
+                      );
+                    }
+                    int realIndex = (chat["message_count"] - 1) - index;
+                    if (realIndex == 0) return SizedBox.shrink();
+                    return chat["messages"][realIndex]["user_sent"] == "no"
+                        ? recieved_msg(realIndex)
+                        : sended_msg(realIndex);
+                  },
                 ),
               ),
               !msg_sent
@@ -232,11 +233,12 @@ class _ChatPageState extends State<ChatPage> {
                     onSubmitted: (value) async {
                       msg_sent = false;
                       setState(() {});
+                      showSendingPopup(context, "Sending....");
                       final msg = type_msg.text;
                       type_msg.text = "";
-
                       await send_message(msg);
                       await all_chats_list();
+                      hideSendingPopup();
                     },
                     controller: type_msg,
                     cursorColor: Colors.teal,
@@ -291,10 +293,12 @@ class _ChatPageState extends State<ChatPage> {
                     onPressed: () async {
                       msg_sent = false;
                       setState(() {});
+                      showSendingPopup(context, "Sending....");
                       final msg = type_msg.text;
                       type_msg.text = "";
                       await send_message(msg);
                       await all_chats_list();
+                      hideSendingPopup();
                     },
                     icon: Icon(Icons.send_rounded, size: 25),
                   ),
@@ -343,6 +347,7 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ).then((value) {
           if (value == "delete") {
+            showSendingPopup(context, "Deleting...");
             delete_msg(no);
           }
         });
@@ -384,6 +389,58 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+///////  sending popup /////
+OverlayEntry? sendingPopup;
+void showSendingPopup(BuildContext context,String text) {
+  if (sendingPopup != null) return; 
+  sendingPopup = OverlayEntry(
+    builder: (context) {
+      double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+      return Positioned(
+        bottom: keyboardHeight+80,
+        left: 130,
+        right: 130,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color:const Color.fromARGB(255, 34, 54, 96),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text(
+                  text,
+                  style: TextStyle(fontFamily: "cursive",fontSize: 12,color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+  Overlay.of(context).insert(sendingPopup!);
+}
+
+
+void hideSendingPopup() {
+  sendingPopup?.remove();
+  sendingPopup = null;
+}
+
+
   //////// sent message widget  ///////
   Widget sended_msg(int no) {
     return GestureDetector(
@@ -420,6 +477,7 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ).then((value) {
           if (value == "delete") {
+            showSendingPopup(context, "Deleting...");
             delete_msg(no);
           }
         });
@@ -477,7 +535,7 @@ class _ChatPageState extends State<ChatPage> {
               bottomRight: Radius.circular(15),
               topRight: Radius.zero,
             ),
-            color: Color.fromARGB(255, 130, 158, 190),
+            color: Color(0xFF5BB9A8),
           ),
           child: Padding(
             padding: const EdgeInsets.only(
@@ -501,6 +559,7 @@ class _ChatPageState extends State<ChatPage> {
 
   ////////   clear_chat ///////
   Future<void> clear_chat() async {
+    showSendingPopup(context, "Clearing ...");
     final email = FirebaseAuth.instance.currentUser?.email;
     final response = await http.delete(
       Uri.parse(
@@ -514,6 +573,7 @@ class _ChatPageState extends State<ChatPage> {
     user_contact();
     setState(() {});
     print(response.body);
+    hideSendingPopup();
   }
 
   ////// delete message  //////
@@ -528,6 +588,7 @@ class _ChatPageState extends State<ChatPage> {
     );
     await all_chats_list();
     await fetch_chat();
+    hideSendingPopup();
     user_contact();
     setState(() {});
     print(response.body);

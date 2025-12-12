@@ -13,7 +13,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.aurex_messenger"
-        minSdk = 23   // ✅ FIXED
+        minSdk = flutter.minSdkVersion   // ✅ FIXED
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

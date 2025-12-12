@@ -1,3 +1,4 @@
+import 'package:Galexi/add_contact.dart';
 import 'package:Galexi/chat_page.dart';
 import 'package:Galexi/essentials/colours.dart';
 import 'package:Galexi/login_page.dart';
@@ -11,7 +12,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
 
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
-TextEditingController search_chat = TextEditingController();
 
 class MyHomePage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -24,7 +24,8 @@ class _MyHomePageState extends State<MyHomePage> {
   /////////    refresh    ///////
 
   Future<void> _refresh() async {
-    Future.delayed(Duration(seconds: 1));
+    await Future.delayed(Duration(seconds: 1));
+    await user_contacts();
     setState(() {});
   }
 
@@ -35,8 +36,7 @@ class _MyHomePageState extends State<MyHomePage> {
     await FirebaseAuth.instance.signOut();
   }
 
-
-///////  mark_msg_seen /////
+  ///////  mark_msg_seen /////
 
   Future<void> mark_msg_seen(String other_user) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
@@ -44,11 +44,8 @@ class _MyHomePageState extends State<MyHomePage> {
       Uri.parse(master_url + "mark_msg_seen/${email}/${other_user}"),
     );
     await user_contacts();
-    setState(() {
-      
-    });
+    setState(() {});
   }
-
 
   //////   chatlist widget  //////
   Widget chat_list(int num) {
@@ -62,16 +59,18 @@ class _MyHomePageState extends State<MyHomePage> {
               : const Color.fromARGB(189, 0, 0, 0),
           borderRadius: BorderRadius.circular(15),
 
-          onTap: () async{
+          onTap: () async {
             mark_msg_seen(contacts["contacts"][num]["id"]);
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => ChatPage(index: num,isdark: isdark,)),
+              MaterialPageRoute(
+                builder: (context) => ChatPage(index: num, isdark: isdark),
+              ),
             );
           },
 
           child: Hero(
-            tag:"prof_page",
+            tag: "prof_page",
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),
@@ -84,6 +83,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: CircleAvatar(
+                      backgroundColor: Colors.white,
                       maxRadius: 23,
                       backgroundImage: NetworkImage(
                         contacts["contacts"][num]["profile_pic"],
@@ -130,7 +130,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                 contacts["contacts"][num]["last_message"],
                                 style: TextStyle(
                                   fontSize: 13.5,
-                                  color: const Color.fromARGB(255, 198, 196, 196),
+                                  color: const Color.fromARGB(
+                                    255,
+                                    198,
+                                    196,
+                                    196,
+                                  ),
                                 ),
                               ),
                             ),
@@ -149,8 +154,10 @@ class _MyHomePageState extends State<MyHomePage> {
                           : const Color.fromARGB(255, 72, 71, 71),
                     ),
                   ),
-                  SizedBox(width: 7,),
-                  contacts["contacts"][num]["msg_seen"]!="seen"?Text("🚀",style: TextStyle(fontSize: 14)):SizedBox.shrink()
+                  SizedBox(width: 7),
+                  contacts["contacts"][num]["msg_seen"] != "seen"
+                      ? Text("🚀", style: TextStyle(fontSize: 14))
+                      : SizedBox.shrink(),
                 ],
               ),
             ),
@@ -169,13 +176,15 @@ class _MyHomePageState extends State<MyHomePage> {
     );
     contacts = jsonDecode(response.body);
     print(contacts);
+    contacts = contacts;
+
     setState(() {});
   }
-
 
   @override
   void initState() {
     super.initState();
+    contacts = contacts;
     Future.microtask(() {
       if (FirebaseAuth.instance.currentUser == null) {
         Navigator.pushReplacement(
@@ -193,35 +202,45 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     final isdark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      floatingActionButton: FloatingActionButton(elevation: 30,backgroundColor: kSentMessage,foregroundColor: const Color.fromARGB(255, 171, 195, 229),child: Icon(Icons.person_add_alt_1),onPressed: () {
-        print("Onkar");
-      },),
-      drawerEdgeDragWidth: 100,
-      drawer: SafeArea(
-        left: true,
-        right: true,
-        bottom: true,
-        child: Drawer(
-          child: Column(
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  user_contacts();
-                },
-                child: Text("contacts"),
-              ),
-
-              ElevatedButton(
-                onPressed: () async {
-                  String? token = await FirebaseMessaging.instance.getToken();
-                  print("FCM Token: $token");
-                },
-                child: Text("Token"),
-              ),
-            ],
-          ),
-        ),
+      floatingActionButton: FloatingActionButton(
+        elevation: 30,
+        backgroundColor: kSentMessage,
+        foregroundColor: const Color.fromARGB(255, 171, 195, 229),
+        child: Icon(Icons.person_add_alt_1),
+        onPressed: () {
+          print("Onkar");
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddContact()),
+          );
+        },
       ),
+      // drawerEdgeDragWidth: 100,
+      // drawer: SafeArea(
+      //   left: true,
+      //   right: true,
+      //   bottom: true,
+      //   child: Drawer(
+      //     child: Column(
+      //       children: [
+      //         ElevatedButton(
+      //           onPressed: () async {
+      //             user_contacts();
+      //           },
+      //           child: Text("contacts"),
+      //         ),
+
+      //         ElevatedButton(
+      //           onPressed: () async {
+      //             String? token = await FirebaseMessaging.instance.getToken();
+      //             print("FCM Token: $token");
+      //           },
+      //           child: Text("Token"),
+      //         ),
+      //       ],
+      //     ),
+      //   ),
+      // ),
       appBar: AppBar(
         leading: IconButton(
           onPressed: () async {
@@ -259,80 +278,24 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () async {
-          _refresh();
-        },
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: SizedBox(
-                height: 50,
-                child: TextField(
-                  controller: search_chat,
-
-                  onChanged: (value) {
-                    print(search_chat.text);
-                  },
-                  onSubmitted: (value) {
-                    print(search_chat.text);
-                  },
-
-                  cursorColor: isdark
-                      ? const Color.fromARGB(255, 122, 218, 238)
-                      : kPrimaryVariant,
-                  decoration: InputDecoration(
-                    prefixIcon: Icon(Icons.search, size: 25),
-                    hint: Text(
-                      "Find a star to chat with.....",
-                      style: TextStyle(
-                        letterSpacing: 2,
-                        fontFamily: "times new roman",
-                      ),
-                    ),
-                    fillColor: const Color.fromARGB(104, 158, 158, 158),
-                    filled: true,
-                    enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        strokeAlign: BorderSide.strokeAlignCenter,
-                        color: kAccentVariant,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        strokeAlign: BorderSide.strokeAlignCenter,
-                        color: kAccentVariant,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    border: OutlineInputBorder(
-                      borderSide: BorderSide(
-                        strokeAlign: BorderSide.strokeAlignCenter,
-                        color: kAccentVariant,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
+        elevation: 10,
+        color: kAccentVariant,
+        onRefresh: _refresh,
+        child:
+            contacts["contact_count"] == null || contacts["contact_count"] == 0
+            ? ListView(
+                physics: AlwaysScrollableScrollPhysics(),
+                children: [
+                  Center(child: Lottie.asset("assets/lotties/rocket.json")),
+                ],
+              )
+            : ListView.builder(
+                physics: AlwaysScrollableScrollPhysics(),
+                itemCount: contacts["contact_count"],
+                itemBuilder: (context, index) {
+                  return chat_list(index);
+                },
               ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: BouncingScrollPhysics(),
-                child: contacts["contact_count"] == null
-                    ? Lottie.asset("assets/lotties/rocket.json")
-                    : Column(
-                        children: List.generate(contacts["contact_count"], (
-                          index,
-                        ) {
-                          return chat_list(index);
-                        }),
-                      ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
