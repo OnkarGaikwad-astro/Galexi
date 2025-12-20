@@ -1,10 +1,13 @@
 import 'dart:convert';
 
+import 'package:Galexi/add_contact.dart';
+import 'package:Galexi/chatbot_page.dart';
 import 'package:Galexi/essentials/colours.dart';
 import 'package:Galexi/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
 

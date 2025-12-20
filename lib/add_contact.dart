@@ -166,6 +166,7 @@ class _AddContactState extends State<AddContact> {
                   Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: CircleAvatar(
+                      backgroundColor: Colors.white,
                       maxRadius: 23,
                       backgroundImage: NetworkImage(
                         result["users"][num]["profile_pic"],

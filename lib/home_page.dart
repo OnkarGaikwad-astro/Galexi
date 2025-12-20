@@ -1,5 +1,6 @@
 import 'package:Galexi/add_contact.dart';
 import 'package:Galexi/chat_page.dart';
+import 'package:Galexi/chatbot_page.dart';
 import 'package:Galexi/essentials/colours.dart';
 import 'package:Galexi/login_page.dart';
 import 'package:Galexi/main.dart';
@@ -260,7 +261,9 @@ class _MyHomePageState extends State<MyHomePage> {
         backgroundColor: isdark ? kSentMessage : kTextHint,
         centerTitle: true,
         elevation: 2,
-        actions: [
+        actions: [InkWell(borderRadius: BorderRadius.circular(17),onTap: () {
+          Navigator.push(context, MaterialPageRoute(builder: (context) => ChatbotPage(),));
+        },child: CircleAvatar(maxRadius: 17,backgroundColor:  isdark ? const Color.fromARGB(78, 25, 50, 98) : kTextHint,backgroundImage: AssetImage("assets/images/ai.png"),)),
           IconButton(
             onPressed: widget.toggleTheme,
             icon: isdark
