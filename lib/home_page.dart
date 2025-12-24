@@ -263,7 +263,7 @@ class _MyHomePageState extends State<MyHomePage> {
         elevation: 2,
         actions: [InkWell(borderRadius: BorderRadius.circular(17),onTap: () {
           Navigator.push(context, MaterialPageRoute(builder: (context) => ChatbotPage(),));
-        },child: CircleAvatar(maxRadius: 17,backgroundColor:  isdark ? const Color.fromARGB(78, 25, 50, 98) : kTextHint,backgroundImage: AssetImage("assets/images/ai.png"),)),
+        },child: CircleAvatar(maxRadius: 15,backgroundColor:  isdark ? const Color.fromARGB(78, 25, 50, 98) : kTextHint,backgroundImage: AssetImage("assets/images/ai.png"),)),
           IconButton(
             onPressed: widget.toggleTheme,
             icon: isdark

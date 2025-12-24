@@ -25,7 +25,8 @@ String sender_last_seen = "";
 bool msg_sent = true;
 String temp_msg = "";
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatPageState extends State<ChatPage> 
+with WidgetsBindingObserver{
   @override
 
   ///// fetch chat /////
@@ -93,6 +94,7 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     last_seen();
+    WidgetsBinding.instance.addObserver(this);
     fetch_chat();
     all_chats_list();
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
@@ -101,6 +103,21 @@ class _ChatPageState extends State<ChatPage> {
       setState(() {});
       print("🔔 message received");
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // ///  refresh msgs when app resumes from home /////
+
+    @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      all_chats_list(); // 🔑 refresh messages
+    }
   }
 
   ///
@@ -126,6 +143,7 @@ class _ChatPageState extends State<ChatPage> {
               Padding(
                 padding: const EdgeInsets.all(4.0),
                 child: CircleAvatar(
+                  backgroundColor:Colors.white,
                   maxRadius: 19,
                   backgroundImage: NetworkImage(
                     contacts["contacts"][widget.index]["profile_pic"],
