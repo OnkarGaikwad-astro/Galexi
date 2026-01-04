@@ -1,20 +1,28 @@
 import 'dart:convert';
-
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:Galexi/add_contact.dart';
 import 'package:Galexi/chatbot_page.dart';
 import 'package:Galexi/essentials/colours.dart';
 import 'package:Galexi/main.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
+import 'package:media_scanner/media_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class ChatPage extends StatefulWidget {
+  final Map<String, dynamic> contacts ;
+  final Map<String, dynamic> msg_list ;
+  final Map<String, dynamic> all_users ;
   final dynamic index;
   final dynamic isdark;
-  const ChatPage({super.key, required this.index, required this.isdark});
+  const ChatPage({super.key, required this.index, required this.isdark,required this.contacts,required this.msg_list,required this.all_users});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -22,15 +30,15 @@ class ChatPage extends StatefulWidget {
 
 TextEditingController type_msg = TextEditingController();
 String sender_last_seen = "";
+String SECRET_MARKER = '\u{E000}';
 bool msg_sent = true;
 String temp_msg = "";
 
-class _ChatPageState extends State<ChatPage> 
-with WidgetsBindingObserver{
+class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
-
   ///// fetch chat /////
   Map<String, dynamic> chat = {};
+  File? selectedImage;
 
   Future<void> fetch_chat() async {
     var result = msg_list["chats"].firstWhere(
@@ -113,7 +121,7 @@ with WidgetsBindingObserver{
 
   // ///  refresh msgs when app resumes from home /////
 
-    @override
+  @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       all_chats_list(); // 🔑 refresh messages
@@ -128,7 +136,11 @@ with WidgetsBindingObserver{
       appBar: AppBar(
         automaticallyImplyLeading: true,
         leading: IconButton(
-          onPressed: () {
+          onPressed: () async{
+            msg_sent = true;
+            setState((){
+            });
+            hideSendingPopup();
             user_contact();
             Navigator.pop(context);
             setState(() {});
@@ -143,7 +155,7 @@ with WidgetsBindingObserver{
               Padding(
                 padding: const EdgeInsets.all(4.0),
                 child: CircleAvatar(
-                  backgroundColor:Colors.white,
+                  backgroundColor: Colors.white,
                   maxRadius: 19,
                   backgroundImage: NetworkImage(
                     contacts["contacts"][widget.index]["profile_pic"],
@@ -201,12 +213,12 @@ with WidgetsBindingObserver{
               SizedBox(height: 20),
               Expanded(
                 child: ListView.builder(
-                  reverse: true, 
+                  reverse: true,
                   itemCount:
                       (chat["message_count"] == null ||
                           chat["message_count"] == 0)
                       ? 1
-                      : chat["message_count"] - 1, 
+                      : chat["message_count"] - 1,
                   itemBuilder: (context, index) {
                     if (chat["message_count"] == null ||
                         chat["message_count"] == 0) {
@@ -217,15 +229,59 @@ with WidgetsBindingObserver{
                     int realIndex = (chat["message_count"] - 1) - index;
                     if (realIndex == 0) return SizedBox.shrink();
                     return chat["messages"][realIndex]["user_sent"] == "no"
-                        ? recieved_msg(realIndex)
-                        : sended_msg(realIndex);
+                        ? (chat["messages"][realIndex]["msg"].contains(
+                                SECRET_MARKER,
+                              )
+                              ? received_image_base(realIndex)
+                              : recieved_msg(realIndex))
+                        : (chat["messages"][realIndex]["msg"].contains(
+                                SECRET_MARKER,
+                              )
+                              ? sent_image_base(realIndex)
+                              : sended_msg(realIndex));
                   },
                 ),
               ),
               !msg_sent
-                  ? (temp_msg != null ? temp_sended_msg() : SizedBox.shrink())
+                  ? (temp_msg != "" ? temp_sended_msg() : SizedBox.shrink())
                   : SizedBox.shrink(),
-              SizedBox(height: 60),
+
+              if (selectedImage != null)
+                Align(
+                  alignment: AlignmentGeometry.centerRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12, right: 10),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        color: isdark ? kTextPrimary : Colors.black,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(2.0),
+                        child: Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadiusGeometry.circular(13),
+                              child: Image.file(selectedImage!, height: 70),
+                            ),
+                            Positioned(
+                              right: -17,
+                              bottom: 40,
+                              child: IconButton(
+                                icon: Icon(Icons.close),
+                                color: Colors.white,
+                                onPressed: () {
+                                  setState(() => selectedImage = null);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              SizedBox(height: 65),
             ],
           ),
           Positioned(
@@ -264,9 +320,17 @@ with WidgetsBindingObserver{
                     controller: type_msg,
                     cursorColor: Colors.teal,
                     decoration: InputDecoration(
-                      prefixIcon: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text("🚀", style: TextStyle(fontSize: 17)),
+                      prefixIcon: IconButton(
+                        icon: Icon(Icons.image),
+                        color: kIcon,
+                        onPressed: () async {
+                          final File? image = await pickImageFromGallery();
+                          if (image != null) {
+                            setState(() {
+                              selectedImage = image;
+                            });
+                          }
+                        },
                       ),
                       hint: Padding(
                         padding: const EdgeInsets.only(top: 20, bottom: 7),
@@ -317,9 +381,16 @@ with WidgetsBindingObserver{
                       showSendingPopup(context, "Sending....");
                       final msg = type_msg.text;
                       type_msg.text = "";
-                      await send_message(msg);
+                      if (msg != null) {
+                        await send_message(msg);
+                      }
+                      if (selectedImage != null) {
+                        await uploadImageBase64(selectedImage!);
+                      }
                       await all_chats_list();
                       hideSendingPopup();
+                      selectedImage = null;
+                      setState(() {});
                     },
                     icon: Icon(Icons.send_rounded, size: 25),
                   ),
@@ -330,6 +401,306 @@ with WidgetsBindingObserver{
         ],
       ),
     );
+  }
+
+  Widget sent_image_base(int no) {
+    bool imageloaded = false;
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return Dialog(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                child: Image.network(
+                  chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                ),
+              ),
+            );
+          },
+        );
+      },
+      onLongPressStart: (details) {
+        showMenu(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadiusGeometry.circular(20),
+          ),
+          popUpAnimationStyle: AnimationStyle(
+            duration: Duration(milliseconds: 200),
+            reverseDuration: Duration(milliseconds: 100),
+          ),
+          shadowColor: kAccentVariant,
+          elevation: 100,
+          context: context,
+          position: RelativeRect.fromLTRB(
+            details.globalPosition.dx,
+            details.globalPosition.dy,
+            0,
+            0,
+          ),
+          menuPadding: EdgeInsets.all(2),
+          items: [
+            PopupMenuItem(
+              value: "delete",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text("Delete"),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: "save_img",
+              child: Row(
+                children: [
+                  Icon(Icons.save_alt_rounded, color: Colors.blue),
+                  SizedBox(width: 10),
+                  Text("Save Image"),
+                ],
+              ),
+            ),
+          ],
+        ).then((value) async {
+          if (value == "delete") {
+            showSendingPopup(context, "Deleting...");
+            delete_msg(no);
+          }
+          if (value == "save_img") {
+            showSendingPopup(context, "Saving...");
+            await saveImageToGallery(
+              chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+            );
+            print("sended");
+            hideSendingPopup();
+          }
+        });
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10.0, right: 12, left: 100),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Color.fromARGB(255, 130, 158, 190),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(15),
+              bottomRight: Radius.circular(15),
+              topLeft: Radius.circular(15),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: ClipRRect(
+              borderRadius: BorderRadiusGeometry.circular(12),
+              child: RepaintBoundary(
+                child: CachedNetworkImage(
+                  imageUrl: chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                  fit: BoxFit.cover,
+
+                  placeholder: (context, url) => const Center(
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        padding: EdgeInsets.all(5),
+                        color: Colors.black,
+                        constraints: BoxConstraints(
+                          minWidth: 20,
+                          minHeight: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  errorWidget: (context, url, error) =>
+                      const Icon(Icons.broken_image),
+
+                  memCacheWidth: 400,
+                  fadeInDuration: Duration.zero,
+                  fadeOutDuration: Duration.zero,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ///// save img to gallery ////
+  Future<void> saveImageToGallery(String imageUrl) async {
+    try {
+      final permission = await Permission.photos.request();
+      if (!permission.isGranted) {
+        print("❌ Permission denied");
+        return;
+      }
+      final response = await http.get(Uri.parse(imageUrl));
+      final Uint8List bytes = response.bodyBytes;
+      final dir = Directory('/storage/emulated/0/Pictures/Galexi');
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+      final filePath =
+          '${dir.path}/galexi_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+      await MediaScanner.loadMedia(path: filePath);
+      print("✅ Image saved & visible in Gallery");
+    } catch (e) {
+      print("❌ Save failed: $e");
+    }
+  }
+
+  Widget received_image_base(int no) {
+    bool imageloaded = false;
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (context) {
+            return Dialog(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                child: Image.network(
+                  chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                ),
+              ),
+            );
+          },
+        );
+      },
+      onLongPressStart: (details) {
+        showMenu(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadiusGeometry.circular(20),
+          ),
+          popUpAnimationStyle: AnimationStyle(
+            duration: Duration(milliseconds: 200),
+            reverseDuration: Duration(milliseconds: 100),
+          ),
+          shadowColor: kAccentVariant,
+          elevation: 100,
+          context: context,
+          position: RelativeRect.fromLTRB(
+            details.globalPosition.dx,
+            details.globalPosition.dy,
+            100,
+            0,
+          ),
+          menuPadding: EdgeInsets.all(2),
+          items: [
+            PopupMenuItem(
+              value: "delete",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text("Delete"),
+                ],
+              ),
+            ),
+            PopupMenuItem(
+              value: "save_img",
+              child: Row(
+                children: [
+                  Icon(Icons.save_alt_rounded, color: Colors.blue),
+                  SizedBox(width: 10),
+                  Text("Save Image"),
+                ],
+              ),
+            ),
+          ],
+        ).then((value) async {
+          if (value == "delete") {
+            showSendingPopup(context, "Deleting...");
+            delete_msg(no);
+          }
+          if (value == "save_img") {
+            showSendingPopup(context, "Saving...");
+            await saveImageToGallery(
+              chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+            );
+            print("saved");
+            hideSendingPopup();
+          }
+        });
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 10.0, left: 12, right: 100),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Color.fromARGB(255, 109, 168, 174),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(15),
+              bottomRight: Radius.circular(15),
+              topRight: Radius.circular(15),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: ClipRRect(
+              borderRadius: BorderRadiusGeometry.circular(12),
+              child: RepaintBoundary(
+                child: CachedNetworkImage(
+                  imageUrl: chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                  fit: BoxFit.cover,
+
+                  placeholder: (context, url) => const Center(
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        padding: EdgeInsets.all(5),
+                        color: Colors.black,
+                        constraints: BoxConstraints(
+                          minWidth: 20,
+                          minHeight: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  errorWidget: (context, url, error) =>
+                      const Icon(Icons.broken_image),
+                  memCacheWidth: 400,
+                  fadeInDuration: Duration.zero,
+                  fadeOutDuration: Duration.zero,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ///// image picker /////
+  Future<File?> pickImageFromGallery() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      imageQuality: 10,
+      source: ImageSource.gallery,
+    );
+    if (image != null) {
+      return File(image.path);
+    }
+    return null;
+  }
+
+  //// upload image to database //////
+  Future<void> uploadImageBase64(File imageFile) async {
+    final bytes = await imageFile.readAsBytes();
+    final response = await http.post(
+      Uri.parse("${master_url}upload_image"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({"file": base64Encode(bytes)}),
+    );
+    print("🚀${jsonDecode(response.body)["url"]}");
+    await send_message("${SECRET_MARKER}${jsonDecode(response.body)["url"]}");
+    setState(() {});
   }
 
   ///////  recieved message widget ///////
@@ -350,7 +721,7 @@ with WidgetsBindingObserver{
           position: RelativeRect.fromLTRB(
             details.globalPosition.dx,
             details.globalPosition.dy,
-            0,
+            100,
             0,
           ),
           menuPadding: EdgeInsets.all(2),
@@ -410,57 +781,59 @@ with WidgetsBindingObserver{
     );
   }
 
-///////  sending popup /////
-OverlayEntry? sendingPopup;
-void showSendingPopup(BuildContext context,String text) {
-  if (sendingPopup != null) return; 
-  sendingPopup = OverlayEntry(
-    builder: (context) {
-      double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-      return Positioned(
-        bottom: keyboardHeight+80,
-        left: 130,
-        right: 130,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color:const Color.fromARGB(255, 34, 54, 96),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+  ///////  sending popup /////
+  OverlayEntry? sendingPopup;
+  void showSendingPopup(BuildContext context, String text) {
+    if (sendingPopup != null) return;
+    sendingPopup = OverlayEntry(
+      builder: (context) {
+        double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+        return Positioned(
+          bottom: keyboardHeight + 80,
+          left: 130,
+          right: 130,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color.fromARGB(255, 34, 54, 96),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                SizedBox(width: 12),
-                Text(
-                  text,
-                  style: TextStyle(fontFamily: "cursive",fontSize: 12,color: Colors.white),
-                ),
-              ],
+                  SizedBox(width: 12),
+                  Text(
+                    text,
+                    style: TextStyle(
+                      fontFamily: "cursive",
+                      fontSize: 12,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      );
-    },
-  );
-  Overlay.of(context).insert(sendingPopup!);
-}
+        );
+      },
+    );
+    Overlay.of(context).insert(sendingPopup!);
+  }
 
-
-void hideSendingPopup() {
-  sendingPopup?.remove();
-  sendingPopup = null;
-}
-
+  void hideSendingPopup() {
+    sendingPopup?.remove();
+    sendingPopup = null;
+  }
 
   //////// sent message widget  ///////
   Widget sended_msg(int no) {
@@ -542,40 +915,44 @@ void hideSendingPopup() {
 
   //////   temp_sended_mgs  //////
   Widget temp_sended_msg() {
-    return Padding(
-      padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
-      child: Align(
-        alignment: Alignment.topRight,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: 270),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(15),
-              topLeft: Radius.circular(15),
-              bottomRight: Radius.circular(15),
-              topRight: Radius.zero,
+    if (temp_msg != null) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
+        child: Align(
+          alignment: Alignment.topRight,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: 270),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(15),
+                topLeft: Radius.circular(15),
+                bottomRight: Radius.circular(15),
+                topRight: Radius.zero,
+              ),
+              color: Color(0xFF5BB9A8),
             ),
-            color: Color(0xFF5BB9A8),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.only(
-              bottom: 3,
-              top: 3,
-              left: 7,
-              right: 7,
-            ),
-            child: Text(
-              temp_msg,
-              style: TextStyle(
-                fontFamily: "Comic Sans MS",
-                color: Colors.black,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                bottom: 3,
+                top: 3,
+                left: 7,
+                right: 7,
+              ),
+              child: Text(
+                temp_msg,
+                style: TextStyle(
+                  fontFamily: "Comic Sans MS",
+                  color: Colors.black,
+                ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    } else {
+      return SizedBox.shrink();
+    }
   }
 
   ////////   clear_chat ///////

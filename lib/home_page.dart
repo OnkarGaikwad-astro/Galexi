@@ -15,8 +15,11 @@ import 'package:lottie/lottie.dart';
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
 
 class MyHomePage extends StatefulWidget {
+  final Map<String, dynamic> contacts ;
+  final Map<String, dynamic> msg_list ;
+  final Map<String, dynamic> all_users ;
   final VoidCallback toggleTheme;
-  const MyHomePage({super.key, required this.toggleTheme});
+  const MyHomePage({super.key, required this.toggleTheme,required this.contacts,required this.msg_list,required this.all_users});
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -65,102 +68,98 @@ class _MyHomePageState extends State<MyHomePage> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ChatPage(index: num, isdark: isdark),
+                builder: (context) => ChatPage(index: num, isdark: isdark,all_users: all_users,contacts: contacts,msg_list: msg_list),
               ),
             );
           },
 
-          child: Hero(
-            tag: "prof_page",
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(15),
-                color: chat_color,
-              ),
-              width: double.infinity,
-              height: 60,
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.white,
-                      maxRadius: 23,
-                      backgroundImage: NetworkImage(
-                        contacts["contacts"][num]["profile_pic"],
-                      ),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              color: chat_color,
+            ),
+            width: double.infinity,
+            height: 60,
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: CircleAvatar(
+                    backgroundColor: Colors.white,
+                    maxRadius: 23,
+                    backgroundImage: NetworkImage(
+                      contacts["contacts"][num]["profile_pic"],
                     ),
                   ),
-                  SizedBox(width: 9),
-                  SizedBox(
-                    width: 230,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: 5),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: SizedBox(
-                            width: 300,
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 210,
-                                  child: Text(
-                                    contacts["contacts"][num]["name"],
-                                    softWrap: true,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontFamily: "times new roman",
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            SizedBox(width: 4),
-                            SizedBox(
-                              width: 210,
-                              child: Text(
-                                overflow: TextOverflow.ellipsis,
-                                contacts["contacts"][num]["last_message"],
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  color: const Color.fromARGB(
-                                    255,
-                                    198,
-                                    196,
-                                    196,
+                ),
+                SizedBox(width: 9),
+                SizedBox(
+                  width: 230,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 5),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          width: 300,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 210,
+                                child: Text(
+                                  contacts["contacts"][num]["name"],
+                                  softWrap: true,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: "times new roman",
+                                    fontWeight: FontWeight.w500,
+                                    fontSize: 15,
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                      Row(
+                        children: [
+                          SizedBox(width: 4),
+                          SizedBox(
+                            width: 210,
+                            child: Text(
+                              overflow: TextOverflow.ellipsis,
+                              contacts["contacts"][num]["last_message"]
+                                      .contains(SECRET_MARKER)
+                                  ? " ◯ Image"
+                                  : contacts["contacts"][num]["last_message"],
+                              style: TextStyle(
+                                fontFamily: "times new roman",
+                                fontSize: 13.5,
+                                color: const Color.fromARGB(255, 198, 196, 196),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  Text(
-                    contacts["contacts"][num]["last_message_time"],
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontFamily: "times new roman",
-                      color: isdark
-                          ? Colors.grey
-                          : const Color.fromARGB(255, 72, 71, 71),
-                    ),
+                ),
+                Text(
+                  contacts["contacts"][num]["last_message_time"],
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontFamily: "times new roman",
+                    color: isdark
+                        ? Colors.grey
+                        : const Color.fromARGB(255, 72, 71, 71),
                   ),
-                  SizedBox(width: 7),
-                  contacts["contacts"][num]["msg_seen"] != "seen"
-                      ? Text("🚀", style: TextStyle(fontSize: 14))
-                      : SizedBox.shrink(),
-                ],
-              ),
+                ),
+                SizedBox(width: 7),
+                contacts["contacts"][num]["msg_seen"] != "seen"
+                    ? Text("🚀", style: TextStyle(fontSize: 14))
+                    : SizedBox.shrink(),
+              ],
             ),
           ),
         ),
@@ -191,7 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => LoginPage(toggleTheme: widget.toggleTheme),
+            builder: (context) => LoginPage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
           ),
         );
       }
@@ -216,59 +215,113 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         },
       ),
-      // drawerEdgeDragWidth: 100,
-      // drawer: SafeArea(
-      //   left: true,
-      //   right: true,
-      //   bottom: true,
-      //   child: Drawer(
-      //     child: Column(
-      //       children: [
-      //         ElevatedButton(
-      //           onPressed: () async {
-      //             user_contacts();
-      //           },
-      //           child: Text("contacts"),
-      //         ),
+      drawerEdgeDragWidth: 100,
+      drawer: SafeArea(
+        left: true,
+        right: true,
+        bottom: true,
+        child: Drawer(
+          child: Column(
+            children: [
+              ElevatedButton(
+                onPressed: () async {
+                  user_contacts();
+                },
+                child: Text("contacts"),
+              ),
 
-      //         ElevatedButton(
-      //           onPressed: () async {
-      //             String? token = await FirebaseMessaging.instance.getToken();
-      //             print("FCM Token: $token");
-      //           },
-      //           child: Text("Token"),
-      //         ),
-      //       ],
-      //     ),
-      //   ),
-      // ),
+              ElevatedButton(
+                onPressed: () async {
+                  String? token = await FirebaseMessaging.instance.getToken();
+                  print("FCM Token: $token");
+                },
+                child: Text("Token"),
+              ),
+            ],
+          ),
+        ),
+      ),
       appBar: AppBar(
         leading: IconButton(
-          onPressed: () async {
+          onPressed: widget.toggleTheme,
+          icon: isdark
+              ? Icon(Icons.dark_mode_outlined, size: 25)
+              : Icon(Icons.light_mode_outlined),
+        ),
+        backgroundColor: isdark ? kSentMessage : kTextHint,
+        centerTitle: true,
+        elevation: 2,
+        actions: [
+          InkWell(
+            borderRadius: BorderRadius.circular(17),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ChatbotPage()),
+              );
+            },
+            child: CircleAvatar(
+              maxRadius: 15,
+              backgroundColor: isdark
+                  ? const Color.fromARGB(78, 25, 50, 98)
+                  : kTextHint,
+              backgroundImage: AssetImage("assets/images/ai.png"),
+            ),
+          ),
+          SizedBox(width: 15),
+          GestureDetector(
+            onTap: () {
+        showMenu(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadiusGeometry.circular(20),
+          ),
+          popUpAnimationStyle: AnimationStyle(
+            duration: Duration(milliseconds: 200),
+            reverseDuration: Duration(milliseconds: 100),
+          ),
+          shadowColor: kAccentVariant,
+          elevation: 100,
+          context: context,
+          position: RelativeRect.fromLTRB(100, 80, 0, 0),
+          menuPadding: EdgeInsets.all(2),
+          items: [
+            PopupMenuItem(
+              value: "logout",
+              child: Row(
+                children: [
+                  Icon(Icons.logout, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text("Logout"),
+                ],
+              ),
+            ),
+          ],
+        ).then((value) async{
+          if (value == "logout") {
             await signOut();
             if (FirebaseAuth.instance.currentUser == null) {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
                   builder: (context) =>
-                      LoginPage(toggleTheme: widget.toggleTheme),
+                      LoginPage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
                 ),
               );
             }
-          },
-          icon: Icon(Icons.logout),
-        ),
-        backgroundColor: isdark ? kSentMessage : kTextHint,
-        centerTitle: true,
-        elevation: 2,
-        actions: [InkWell(borderRadius: BorderRadius.circular(17),onTap: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => ChatbotPage(),));
-        },child: CircleAvatar(maxRadius: 15,backgroundColor:  isdark ? const Color.fromARGB(78, 25, 50, 98) : kTextHint,backgroundImage: AssetImage("assets/images/ai.png"),)),
-          IconButton(
-            onPressed: widget.toggleTheme,
-            icon: isdark
-                ? Icon(Icons.dark_mode_outlined, size: 23)
-                : Icon(Icons.light_mode_outlined),
+          }
+        });
+      },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: CircleAvatar(
+                backgroundColor: Colors.white,
+                radius: 20,
+                backgroundImage:
+                    FirebaseAuth.instance.currentUser?.photoURL != null
+                    ? NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!)
+                    : AssetImage("assets/images/spiderman.jpg"),
+              ),
+            ),
           ),
         ],
         title: Text(

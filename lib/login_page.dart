@@ -15,8 +15,11 @@ DateTime startTime = DateTime.now();
 TextEditingController bio_text = TextEditingController();
 
 class LoginPage extends StatefulWidget {
+  final Map<String, dynamic> contacts ;
+  final Map<String, dynamic> msg_list ;
+  final Map<String, dynamic> all_users ;
   final VoidCallback toggleTheme;
-  const LoginPage({super.key, required this.toggleTheme});
+  const LoginPage({super.key, required this.toggleTheme,required this.contacts,required this.msg_list,required this.all_users});
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -34,7 +37,7 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => MyHomePage(toggleTheme: widget.toggleTheme),
+            builder: (context) =>MyHomePage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
           ),
         );
       }
@@ -223,7 +226,7 @@ class _LoginPageState extends State<LoginPage> {
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
-                                  MyHomePage(toggleTheme: widget.toggleTheme),
+                                  MyHomePage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
                             ),
                           );
                       },

@@ -147,8 +147,8 @@ class _MyAppState extends State<MyApp> {
       darkTheme: ThemeData.dark(),
       title: 'Galexi',
       home: FirebaseAuth.instance.currentUser != null
-          ? MyHomePage(toggleTheme: toggleTheme)
-          : LoginPage(toggleTheme: toggleTheme),
+          ? MyHomePage(toggleTheme: toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list)
+          : LoginPage(toggleTheme: toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list ),
     );
   }
 }
