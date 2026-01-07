@@ -9,6 +9,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -17,12 +18,19 @@ import 'package:media_scanner/media_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 class ChatPage extends StatefulWidget {
-  final Map<String, dynamic> contacts ;
-  final Map<String, dynamic> msg_list ;
-  final Map<String, dynamic> all_users ;
+  final Map<String, dynamic> contacts;
+  final Map<String, dynamic> msg_list;
+  final Map<String, dynamic> all_users;
   final dynamic index;
   final dynamic isdark;
-  const ChatPage({super.key, required this.index, required this.isdark,required this.contacts,required this.msg_list,required this.all_users});
+  const ChatPage({
+    super.key,
+    required this.index,
+    required this.isdark,
+    required this.contacts,
+    required this.msg_list,
+    required this.all_users,
+  });
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -131,50 +139,286 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   ///
 
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        automaticallyImplyLeading: true,
-        leading: IconButton(
-          onPressed: () async{
-            msg_sent = true;
-            setState((){
-            });
+    return GestureDetector(
+      onTap: () {
+        FocusScope.of(context).unfocus();
+      },
+      child: PopScope(
+        canPop: true, // allow back navigation
+        onPopInvoked: (didPop) {
+          if (didPop) {
+            print("🚀DEVICE BACK BUTTON PRESSED");
             hideSendingPopup();
-            user_contact();
-            Navigator.pop(context);
-            setState(() {});
-          },
-          icon: Icon(Icons.arrow_back_ios_new_rounded),
-        ),
-        leadingWidth: 30,
-        title: SizedBox(
-          width: 270,
-          child: Row(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(4.0),
-                child: CircleAvatar(
-                  backgroundColor: Colors.white,
-                  maxRadius: 19,
-                  backgroundImage: NetworkImage(
-                    contacts["contacts"][widget.index]["profile_pic"],
+          }
+        },
+        child: Scaffold(
+          resizeToAvoidBottomInset: true,
+          appBar: AppBar(
+            automaticallyImplyLeading: true,
+            leading: IconButton(
+              onPressed: () async {
+                msg_sent = true;
+                setState(() {});
+                hideSendingPopup();
+                user_contact();
+                Navigator.pop(context);
+                setState(() {});
+              },
+              icon: Icon(Icons.arrow_back_ios_new_rounded),
+            ),
+            leadingWidth: 30,
+            title: SizedBox(
+              width: 270,
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(4.0),
+                    child: CircleAvatar(
+                      backgroundColor: Colors.white,
+                      maxRadius: 19,
+                      backgroundImage: NetworkImage(
+                        contacts["contacts"][widget.index]["profile_pic"],
+                      ),
+                    ),
+                  ),
+                  SizedBox(width: 10),
+                  SizedBox(
+                    width: 210,
+                    child: Column(
+                      children: [
+                        Text(
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontFamily: "times new roman",
+                          ),
+                          contacts["contacts"][widget.index]["name"],
+                          softWrap: true,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              PopupMenuButton(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.circular(15),
+                  side: BorderSide(
+                    color: const Color.fromARGB(255, 255, 255, 255),
                   ),
                 ),
+                enabled: true,
+                popUpAnimationStyle: AnimationStyle(
+                  duration: Duration(milliseconds: 100),
+                ),
+
+                menuPadding: EdgeInsets.all(1),
+                onSelected: (value) async {
+                  if (value == "clear") {
+                    await clear_chat();
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(value: "clear", child: Text("Clear Chat")),
+                ],
               ),
-              SizedBox(width: 10),
-              SizedBox(
-                width: 210,
-                child: Column(
-                  children: [
-                    Text(
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontFamily: "times new roman",
+            ],
+            backgroundColor: isdark ? kSentMessage : kTextHint,
+          ),
+          body: Stack(
+            children: [
+              Column(
+                children: [
+                  SizedBox(height: 20),
+                  Expanded(
+                    child: ListView.builder(
+                      reverse: true,
+                      itemCount:
+                          (chat["message_count"] == null ||
+                              chat["message_count"] == 0)
+                          ? 1
+                          : chat["message_count"] - 1,
+                      itemBuilder: (context, index) {
+                        if (chat["message_count"] == null ||
+                            chat["message_count"] == 0) {
+                          return Center(
+                            child: Lottie.asset(
+                              "assets/lotties/paperplane.json",
+                            ),
+                          );
+                        }
+                        int realIndex = (chat["message_count"] - 1) - index;
+                        if (realIndex == 0) return SizedBox.shrink();
+                        return chat["messages"][realIndex]["user_sent"] == "no"
+                            ? (chat["messages"][realIndex]["msg"].contains(
+                                    SECRET_MARKER,
+                                  )
+                                  ? received_image_base(realIndex)
+                                  : recieved_msg(realIndex))
+                            : (chat["messages"][realIndex]["msg"].contains(
+                                    SECRET_MARKER,
+                                  )
+                                  ? sent_image_base(realIndex)
+                                  : sended_msg(realIndex));
+                      },
+                    ),
+                  ),
+                  !msg_sent
+                      ? (temp_msg != "" ? temp_sended_msg() : SizedBox.shrink())
+                      : SizedBox.shrink(),
+
+                  if (selectedImage != null)
+                    Align(
+                      alignment: AlignmentGeometry.centerRight,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 12, right: 10),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                            color: isdark ? kTextPrimary : Colors.black,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(2.0),
+                            child: Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadiusGeometry.circular(
+                                    13,
+                                  ),
+                                  child: Image.file(selectedImage!, height: 70),
+                                ),
+                                Positioned(
+                                  right: -17,
+                                  bottom: 40,
+                                  child: IconButton(
+                                    icon: Icon(Icons.close),
+                                    color: Colors.white,
+                                    onPressed: () {
+                                      setState(() => selectedImage = null);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
-                      contacts["contacts"][widget.index]["name"],
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
+                    ),
+                  SizedBox(height: 65),
+                ],
+              ),
+              Positioned(
+                bottom: 15,
+                left: 10,
+                right: 10,
+                height: 50,
+                child: Row(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(25),
+                      ),
+                      width: 300,
+                      height: 50,
+                      child: TextField(
+                        onChanged: (value) {
+                          msg_sent = false;
+                          temp_msg = type_msg.text;
+                          if (type_msg.text.trim().isEmpty) {
+                            msg_sent = true;
+                            setState(() {});
+                          }
+                          setState(() {});
+                        },
+                        onSubmitted: (value) async {
+                          msg_sent = false;
+                          setState(() {});
+                          showSendingPopup(context, "Sending....");
+                          final msg = type_msg.text;
+                          type_msg.text = "";
+                          await send_message(msg);
+                          await all_chats_list();
+                          hideSendingPopup();
+                        },
+                        controller: type_msg,
+                        cursorColor: Colors.teal,
+                        decoration: InputDecoration(
+                          prefixIcon: IconButton(
+                            icon: Icon(Icons.image),
+                            color: kIcon,
+                            onPressed: () async {
+                              final File? image = await pickImageFromGallery();
+                              if (image != null) {
+                                setState(() {
+                                  selectedImage = image;
+                                });
+                              }
+                            },
+                          ),
+                          hint: Padding(
+                            padding: const EdgeInsets.only(top: 20, bottom: 7),
+                            child: Text(
+                              "Send across the galaxy . . .",
+                              style: TextStyle(
+                                fontFamily: "times new roman",
+                                letterSpacing: 1.5,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          filled: true,
+                          fillColor: const Color.fromARGB(46, 158, 158, 158),
+                          disabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide(
+                              color: (isdark ? Colors.white : Colors.black),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide(
+                              color: (isdark ? Colors.white : Colors.black),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15),
+                            borderSide: BorderSide(
+                              color: (isdark ? Colors.white : Colors.black),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 7),
+                    Container(
+                      height: 50,
+                      width: 50,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(25),
+                        color: Color.fromARGB(255, 59, 148, 181),
+                      ),
+                      child: IconButton(
+                        onPressed: () async {
+                          msg_sent = false;
+                          setState(() {});
+                          showSendingPopup(context, "Sending....");
+                          final msg = type_msg.text;
+                          type_msg.text = "";
+                          if (msg != null) {
+                            await send_message(msg);
+                          }
+                          if (selectedImage != null) {
+                            await uploadImageBase64(selectedImage!);
+                          }
+                          await all_chats_list();
+                          hideSendingPopup();
+                          selectedImage = null;
+                          setState(() {});
+                        },
+                        icon: Icon(Icons.send_rounded, size: 25),
+                      ),
                     ),
                   ],
                 ),
@@ -182,223 +426,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             ],
           ),
         ),
-        actions: [
-          PopupMenuButton(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadiusGeometry.circular(15),
-              side: BorderSide(color: const Color.fromARGB(255, 255, 255, 255)),
-            ),
-            enabled: true,
-            popUpAnimationStyle: AnimationStyle(
-              duration: Duration(milliseconds: 100),
-            ),
-
-            menuPadding: EdgeInsets.all(1),
-            onSelected: (value) async {
-              if (value == "clear") {
-                await clear_chat();
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(value: "clear", child: Text("Clear Chat")),
-            ],
-          ),
-        ],
-        backgroundColor: isdark ? kSentMessage : kTextHint,
-      ),
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              SizedBox(height: 20),
-              Expanded(
-                child: ListView.builder(
-                  reverse: true,
-                  itemCount:
-                      (chat["message_count"] == null ||
-                          chat["message_count"] == 0)
-                      ? 1
-                      : chat["message_count"] - 1,
-                  itemBuilder: (context, index) {
-                    if (chat["message_count"] == null ||
-                        chat["message_count"] == 0) {
-                      return Center(
-                        child: Lottie.asset("assets/lotties/paperplane.json"),
-                      );
-                    }
-                    int realIndex = (chat["message_count"] - 1) - index;
-                    if (realIndex == 0) return SizedBox.shrink();
-                    return chat["messages"][realIndex]["user_sent"] == "no"
-                        ? (chat["messages"][realIndex]["msg"].contains(
-                                SECRET_MARKER,
-                              )
-                              ? received_image_base(realIndex)
-                              : recieved_msg(realIndex))
-                        : (chat["messages"][realIndex]["msg"].contains(
-                                SECRET_MARKER,
-                              )
-                              ? sent_image_base(realIndex)
-                              : sended_msg(realIndex));
-                  },
-                ),
-              ),
-              !msg_sent
-                  ? (temp_msg != "" ? temp_sended_msg() : SizedBox.shrink())
-                  : SizedBox.shrink(),
-
-              if (selectedImage != null)
-                Align(
-                  alignment: AlignmentGeometry.centerRight,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: 12, right: 10),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: isdark ? kTextPrimary : Colors.black,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(2.0),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadiusGeometry.circular(13),
-                              child: Image.file(selectedImage!, height: 70),
-                            ),
-                            Positioned(
-                              right: -17,
-                              bottom: 40,
-                              child: IconButton(
-                                icon: Icon(Icons.close),
-                                color: Colors.white,
-                                onPressed: () {
-                                  setState(() => selectedImage = null);
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              SizedBox(height: 65),
-            ],
-          ),
-          Positioned(
-            bottom: 15,
-            left: 10,
-            right: 10,
-            height: 50,
-            child: Row(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  width: 300,
-                  height: 50,
-                  child: TextField(
-                    onChanged: (value) {
-                      msg_sent = false;
-                      temp_msg = type_msg.text;
-                      if (type_msg.text.trim().isEmpty) {
-                        msg_sent = true;
-                        setState(() {});
-                      }
-                      setState(() {});
-                    },
-                    onSubmitted: (value) async {
-                      msg_sent = false;
-                      setState(() {});
-                      showSendingPopup(context, "Sending....");
-                      final msg = type_msg.text;
-                      type_msg.text = "";
-                      await send_message(msg);
-                      await all_chats_list();
-                      hideSendingPopup();
-                    },
-                    controller: type_msg,
-                    cursorColor: Colors.teal,
-                    decoration: InputDecoration(
-                      prefixIcon: IconButton(
-                        icon: Icon(Icons.image),
-                        color: kIcon,
-                        onPressed: () async {
-                          final File? image = await pickImageFromGallery();
-                          if (image != null) {
-                            setState(() {
-                              selectedImage = image;
-                            });
-                          }
-                        },
-                      ),
-                      hint: Padding(
-                        padding: const EdgeInsets.only(top: 20, bottom: 7),
-                        child: Text(
-                          "Send across the galaxy . . .",
-                          style: TextStyle(
-                            fontFamily: "times new roman",
-                            letterSpacing: 1.5,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      filled: true,
-                      fillColor: const Color.fromARGB(46, 158, 158, 158),
-                      disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                          color: (isdark ? Colors.white : Colors.black),
-                        ),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                          color: (isdark ? Colors.white : Colors.black),
-                        ),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        borderSide: BorderSide(
-                          color: (isdark ? Colors.white : Colors.black),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                SizedBox(width: 7),
-                Container(
-                  height: 50,
-                  width: 50,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                    color: Color.fromARGB(255, 59, 148, 181),
-                  ),
-                  child: IconButton(
-                    onPressed: () async {
-                      msg_sent = false;
-                      setState(() {});
-                      showSendingPopup(context, "Sending....");
-                      final msg = type_msg.text;
-                      type_msg.text = "";
-                      if (msg != null) {
-                        await send_message(msg);
-                      }
-                      if (selectedImage != null) {
-                        await uploadImageBase64(selectedImage!);
-                      }
-                      await all_chats_list();
-                      hideSendingPopup();
-                      selectedImage = null;
-                      setState(() {});
-                    },
-                    icon: Icon(Icons.send_rounded, size: 25),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -736,11 +763,28 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            PopupMenuItem(
+              value: "Copy",
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.content_copy_outlined,
+                    color: const Color.fromARGB(255, 8, 242, 219),
+                  ),
+                  SizedBox(width: 10),
+                  Text("Copy Text"),
+                ],
+              ),
+            ),
           ],
         ).then((value) {
           if (value == "delete") {
             showSendingPopup(context, "Deleting...");
             delete_msg(no);
+          }
+          ;
+          if (value == "Copy") {
+            Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
           }
         });
       },
@@ -868,12 +912,30 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            PopupMenuItem(
+              value: "Copy",
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.content_copy_outlined,
+                    color: const Color.fromARGB(255, 8, 242, 219),
+                  ),
+                  SizedBox(width: 10),
+                  Text("Copy Text"),
+                ],
+              ),
+            ),
           ],
         ).then((value) {
           if (value == "delete") {
             showSendingPopup(context, "Deleting...");
             delete_msg(no);
           }
+          ;
+          if (value == "delete") {
+            Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
+          }
+          ;
         });
       },
       child: Padding(

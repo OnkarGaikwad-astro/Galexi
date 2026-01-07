@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:Galexi/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -54,6 +53,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
+//////  MAIN  //////
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -61,6 +61,8 @@ Future<void> main() async {
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(MyApp());
 }
+
+
 
 final GlobalKey<_MyAppState> appKey = GlobalKey<_MyAppState>();
 
@@ -137,6 +139,7 @@ class _MyAppState extends State<MyApp> {
     print(contacts);
     setState(() {});
   }
+
 
   @override
   Widget build(BuildContext context) {
