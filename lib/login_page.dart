@@ -10,16 +10,14 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
 
+String master_url = "https://vercel-server-ivory-six.vercel.app/";
 DateTime startTime = DateTime.now();
 
 TextEditingController bio_text = TextEditingController();
 
 class LoginPage extends StatefulWidget {
-  final Map<String, dynamic> contacts ;
-  final Map<String, dynamic> msg_list ;
-  final Map<String, dynamic> all_users ;
   final VoidCallback toggleTheme;
-  const LoginPage({super.key, required this.toggleTheme,required this.contacts,required this.msg_list,required this.all_users});
+  const LoginPage({super.key, required this.toggleTheme});
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
@@ -37,7 +35,7 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) =>MyHomePage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
+            builder: (context) =>MyHomePage(toggleTheme: widget.toggleTheme),
           ),
         );
       }
@@ -226,7 +224,7 @@ class _LoginPageState extends State<LoginPage> {
                             context,
                             MaterialPageRoute(
                               builder: (context) =>
-                                  MyHomePage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
+                                  MyHomePage(toggleTheme: widget.toggleTheme),
                             ),
                           );
                       },

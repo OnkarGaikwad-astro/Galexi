@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:Galexi/add_contact.dart';
 import 'package:Galexi/chatbot_page.dart';
 import 'package:Galexi/essentials/colours.dart';
+import 'package:Galexi/essentials/data.dart';
 import 'package:Galexi/main.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,32 +12,26 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+String master_url = "https://vercel-server-ivory-six.vercel.app/";
+
 class ChatPage extends StatefulWidget {
-  final Map<String, dynamic> contacts;
-  final Map<String, dynamic> msg_list;
-  final Map<String, dynamic> all_users;
   final dynamic index;
   final dynamic isdark;
-  const ChatPage({
-    super.key,
-    required this.index,
-    required this.isdark,
-    required this.contacts,
-    required this.msg_list,
-    required this.all_users,
-  });
+  const ChatPage({super.key, required this.index, required this.isdark});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
 }
 
 TextEditingController type_msg = TextEditingController();
+
 String sender_last_seen = "";
 String SECRET_MARKER = '\u{E000}';
 bool msg_sent = true;
@@ -45,24 +40,44 @@ String temp_msg = "";
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
   ///// fetch chat /////
-  Map<String, dynamic> chat = {};
+  Map<String, dynamic> chat = <String, dynamic>{
+    "message_count": 0,
+    "messages": <dynamic>[],
+  };
+
   File? selectedImage;
 
   Future<void> fetch_chat() async {
-    var result = msg_list["chats"].firstWhere(
+    print("🚀");
+    final Map<String, dynamic> msg_list = Map<String, dynamic>.from(
+      all_msg_list.value,
+    );
+    print("msg_list $msg_list");
+    final Map<String, dynamic> contacts = Map<String, dynamic>.from(
+      all_contacts.value,
+    );
+    print("contacts $contacts");
+    final dynamic result = msg_list["chats"].firstWhere(
       (c) => c["contact_id"] == contacts["contacts"][widget.index]["id"],
       orElse: () => null,
     );
     if (result == null) {
+      print("null");
       chat = {"message_count": 0, "messages": []};
     } else {
-      chat = result;
+      print("hello");
+      chat = Map<String, dynamic>.from(result);
+      print("chat:${chat}");
     }
+    print("chat:${chat}");
+    print("result:${result}");
+    print("all_msg_list.value:${all_msg_list.value}");
     setState(() {});
   }
 
   ///////   send message   ////
   Future<void> send_message(String msg) async {
+    final contacts = all_contacts.value;
     final response = await http.post(
       Uri.parse(master_url + "add_message"),
       headers: {"Content-Type": "application/json"},
@@ -72,12 +87,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         "msg": msg,
       }),
     );
-    print(response.body);
+    print("msg sent $response.body");
   }
 
   ///// sender_last_seen  /////
 
   Future<void> last_seen() async {
+    final Map<String, dynamic> contacts = Map<String, dynamic>.from(
+      all_contacts.value,
+    );
     print("last_seen_fetch_start");
     final response = await http.get(
       Uri.parse(
@@ -98,8 +116,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       Uri.parse(master_url + "all_chats/${email}"),
       headers: {"Content-Type": "application/json"},
     );
-    msg_list = await jsonDecode(response.body);
-    print(msg_list);
+    all_msg_list.value = Map<String, dynamic>.from(jsonDecode(response.body));
+    final box = Hive.box('cache');
+    await box.put('all_msg_list', all_msg_list.value);
+    print("😅 SAVEX");
+    print(all_msg_list.value);
+    print(all_msg_list.value);
     await fetch_chat();
     msg_sent = true;
     setState(() {});
@@ -109,9 +131,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    fetch_chat();
     last_seen();
     WidgetsBinding.instance.addObserver(this);
-    fetch_chat();
+
     all_chats_list();
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
       last_seen();
@@ -167,39 +190,180 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               icon: Icon(Icons.arrow_back_ios_new_rounded),
             ),
             leadingWidth: 30,
-            title: SizedBox(
-              width: 270,
-              child: Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(4.0),
-                    child: CircleAvatar(
-                      backgroundColor: Colors.white,
-                      maxRadius: 19,
-                      backgroundImage: NetworkImage(
-                        contacts["contacts"][widget.index]["profile_pic"],
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 10),
-                  SizedBox(
-                    width: 210,
-                    child: Column(
+            title: ValueListenableBuilder(
+              valueListenable: all_contacts,
+              builder: (_, value, _) {
+                final contacts = value;
+                return SizedBox(
+                  width: 270,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(10),
+                    onTap: () {
+                      print("BAR PRESSED 🚀");
+                      showDialog(
+                        context: context,
+                        builder: (context) {
+                          return Dialog(
+                            child: Builder(
+                              builder: (context) {
+                                const double imageSize = 300;
+
+                                final double dpr = MediaQuery.of(
+                                  context,
+                                ).devicePixelRatio;
+
+                                String highQualityUrl(String url) {
+                                  return url.replaceAll(
+                                    RegExp(r's\d+-c'),
+                                    's800-c',
+                                  );
+                                }
+
+                                return Container(
+                                  // height: 430,
+                                  padding: const EdgeInsets.all(2),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Hero(
+                                        tag: contacts["contacts"][widget.index]["name"],
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            20,
+                                          ),
+                                          child: RepaintBoundary(
+                                            child: CachedNetworkImage(
+                                              imageUrl: highQualityUrl(
+                                                contacts["contacts"][widget.index]["profile_pic"],
+                                              ),
+                                              width: imageSize,
+                                              height: imageSize,
+                                              fit: BoxFit.contain,
+                                              filterQuality: FilterQuality.high,
+                                              memCacheWidth: (imageSize * dpr)
+                                                  .round(),
+                                              memCacheHeight: (imageSize * dpr)
+                                                  .round(),
+                                              fadeInDuration: Duration.zero,
+                                              fadeOutDuration: Duration.zero,
+                                              placeholder: (context, url) =>
+                                                  const SizedBox(
+                                                    height: 300,
+                                                    child: Center(
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                          ),
+                                                    ),
+                                                  ),
+                                              errorWidget:
+                                                  (context, url, error) =>
+                                                      const Icon(
+                                                        Icons.broken_image,
+                                                        size: 40,
+                                                      ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        contacts["contacts"][widget.index]["name"],
+                                        style: const TextStyle(
+                                          fontFamily: "times new roman",
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      contacts["contacts"][widget.index]["bio"]==""?SizedBox.shrink():Padding(
+                                        padding: const EdgeInsets.all(4.0),
+                                        child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),color: kPrimaryVariant),width: 300,child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // SizedBox(height: 3,),
+                                            Text("  Bio :",style: TextStyle(fontFamily: "cursive",fontWeight: FontWeight.w800),),
+                                            Padding(
+                                              padding: const EdgeInsets.only(left: 6,right: 6,bottom: 4),
+                                              child: Text(contacts["contacts"][widget.index]["bio"],style: TextStyle(fontFamily: "times new roman")),
+                                            )
+                                          ],
+                                        ),),
+                                      ),
+                                      SizedBox(height: 7,)
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    child: Row(
                       children: [
-                        Text(
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontFamily: "times new roman",
+                        Padding(
+                          padding: const EdgeInsets.all(4.0),
+                          child: Hero(
+                            tag: contacts["contacts"][widget.index]["name"],
+                            child: Container(
+                              height: 40,
+                              width: 40,
+                              child: ClipRRect(
+                                borderRadius: BorderRadiusGeometry.circular(10),
+                                child: RepaintBoundary(
+                                  child: CachedNetworkImage(
+                                    imageUrl:
+                                        contacts["contacts"][widget
+                                            .index]["profile_pic"],
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => const Center(
+                                      child: SizedBox(
+                                        height: 20,
+                                        width: 20,
+                                        child: CircularProgressIndicator(
+                                          padding: EdgeInsets.all(5),
+                                          color: Colors.black,
+                                          constraints: BoxConstraints(
+                                            minWidth: 20,
+                                            minHeight: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) =>
+                                        const Icon(Icons.broken_image),
+                                    memCacheWidth: 400,
+                                    fadeInDuration: Duration.zero,
+                                    fadeOutDuration: Duration.zero,
+                                  ),
+                                ),
+                                // child: Image.network(contacts["contacts"][num]["profile_pic"]),
+                              ),
+                            ),
                           ),
-                          contacts["contacts"][widget.index]["name"],
-                          softWrap: true,
-                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(width: 10),
+                        SizedBox(
+                          width: 210,
+                          child: Column(
+                            children: [
+                              Text(
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontFamily: "times new roman",
+                                ),
+                                contacts["contacts"][widget.index]["name"],
+                                softWrap: true,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
             actions: [
               PopupMenuButton(
@@ -225,7 +389,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ],
-            backgroundColor: isdark ? kSentMessage : kTextHint,
+            backgroundColor: widget.isdark ? kSentMessage : kTextHint,
           ),
           body: Stack(
             children: [
@@ -277,7 +441,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(15),
-                            color: isdark ? kTextPrimary : Colors.black,
+                            color: widget.isdark ? kTextPrimary : Colors.black,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(2.0),
@@ -373,19 +537,25 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           disabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide(
-                              color: (isdark ? Colors.white : Colors.black),
+                              color: (widget.isdark
+                                  ? Colors.white
+                                  : Colors.black),
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide(
-                              color: (isdark ? Colors.white : Colors.black),
+                              color: (widget.isdark
+                                  ? Colors.white
+                                  : Colors.black),
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide(
-                              color: (isdark ? Colors.white : Colors.black),
+                              color: (widget.isdark
+                                  ? Colors.white
+                                  : Colors.black),
                             ),
                           ),
                         ),
@@ -442,6 +612,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 minScale: 1,
                 maxScale: 5,
                 child: Image.network(
+                  filterQuality: FilterQuality.high,
                   chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
                 ),
               ),
@@ -522,6 +693,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               borderRadius: BorderRadiusGeometry.circular(12),
               child: RepaintBoundary(
                 child: CachedNetworkImage(
+                  filterQuality: FilterQuality.high,
                   imageUrl: chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
                   fit: BoxFit.cover,
 
@@ -932,7 +1104,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             delete_msg(no);
           }
           ;
-          if (value == "delete") {
+          if (value == "Copy") {
             Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
           }
           ;
@@ -1019,6 +1191,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   ////////   clear_chat ///////
   Future<void> clear_chat() async {
+    final contacts = all_contacts.value;
     showSendingPopup(context, "Clearing ...");
     final email = FirebaseAuth.instance.currentUser?.email;
     final response = await http.delete(
@@ -1038,6 +1211,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   ////// delete message  //////
   Future<void> delete_msg(int convo_id) async {
+    final contacts = all_contacts.value;
     final email = FirebaseAuth.instance.currentUser?.email;
     final response = await http.delete(
       Uri.parse(

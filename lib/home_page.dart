@@ -2,24 +2,27 @@ import 'package:Galexi/add_contact.dart';
 import 'package:Galexi/chat_page.dart';
 import 'package:Galexi/chatbot_page.dart';
 import 'package:Galexi/essentials/colours.dart';
+import 'package:Galexi/essentials/data.dart';
 import 'package:Galexi/login_page.dart';
-import 'package:Galexi/main.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+// import 'package:Galexi/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
 
+String master_url = "https://vercel-server-ivory-six.vercel.app/";
+
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
+bool isdark = true;
 
 class MyHomePage extends StatefulWidget {
-  final Map<String, dynamic> contacts ;
-  final Map<String, dynamic> msg_list ;
-  final Map<String, dynamic> all_users ;
   final VoidCallback toggleTheme;
-  const MyHomePage({super.key, required this.toggleTheme,required this.contacts,required this.msg_list,required this.all_users});
+  const MyHomePage({super.key, required this.toggleTheme});
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
@@ -54,115 +57,246 @@ class _MyHomePageState extends State<MyHomePage> {
   //////   chatlist widget  //////
   Widget chat_list(int num) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(4.0),
-        child: InkWell(
-          splashFactory: NoSplash.splashFactory,
-          splashColor: Theme.of(context).brightness == Brightness.dark
-              ? const Color.fromARGB(200, 255, 255, 255)
-              : const Color.fromARGB(189, 0, 0, 0),
-          borderRadius: BorderRadius.circular(15),
-
-          onTap: () async {
-            mark_msg_seen(contacts["contacts"][num]["id"]);
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => ChatPage(index: num, isdark: isdark,all_users: all_users,contacts: contacts,msg_list: msg_list),
-              ),
-            );
-          },
-
-          child: Container(
-            decoration: BoxDecoration(
+      child: ValueListenableBuilder(
+        valueListenable: all_contacts,
+        builder: (_, value, _) {
+          final contacts = value;
+          return Padding(
+            padding: const EdgeInsets.all(4.0),
+            child: InkWell(
+              splashFactory: NoSplash.splashFactory,
+              splashColor: Theme.of(context).brightness == Brightness.dark
+                  ? const Color.fromARGB(200, 255, 255, 255)
+                  : const Color.fromARGB(189, 0, 0, 0),
               borderRadius: BorderRadius.circular(15),
-              color: chat_color,
-            ),
-            width: double.infinity,
-            height: 60,
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: CircleAvatar(
-                    backgroundColor: Colors.white,
-                    maxRadius: 23,
-                    backgroundImage: NetworkImage(
-                      contacts["contacts"][num]["profile_pic"],
-                    ),
+
+              onTap: () async {
+                mark_msg_seen(contacts["contacts"][num]["id"]);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatPage(index: num, isdark: isdark),
                   ),
+                );
+              },
+
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  color: chat_color,
                 ),
-                SizedBox(width: 9),
-                SizedBox(
-                  width: 230,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 5),
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: SizedBox(
-                          width: 300,
-                          child: Row(
+                width: double.infinity,
+                height: 60,
+                child: Row(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () {
+                          showDialog(
+                            context: context,
+                            builder: (context) {
+                              return Dialog(
+                                child: Builder(
+                                  builder: (context) {
+                                    const double imageSize = 300;
+
+                                    final double dpr = MediaQuery.of(
+                                      context,
+                                    ).devicePixelRatio;
+
+                                    String highQualityUrl(String url) {
+                                      return url.replaceAll(
+                                        RegExp(r's\d+-c'),
+                                        's800-c',
+                                      );
+                                    }
+
+                                    return Container(
+                                      height: 330,
+                                      padding: const EdgeInsets.all(2),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Hero(
+                                            tag:
+                                                contacts["contacts"][num]["name"],
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              child: RepaintBoundary(
+                                                child: CachedNetworkImage(
+                                                  imageUrl: highQualityUrl(
+                                                    contacts["contacts"][num]["profile_pic"],
+                                                  ),
+                                                  width: imageSize,
+                                                  height: imageSize,
+                                                  fit: BoxFit.contain,
+                                                  filterQuality:
+                                                      FilterQuality.high,
+                                                  memCacheWidth:
+                                                      (imageSize * dpr).round(),
+                                                  memCacheHeight:
+                                                      (imageSize * dpr).round(),
+                                                  fadeInDuration: Duration.zero,
+                                                  fadeOutDuration:
+                                                      Duration.zero,
+                                                  placeholder: (context, url) =>
+                                                      const SizedBox(
+                                                        height: 300,
+                                                        child: Center(
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                  errorWidget:
+                                                      (context, url, error) =>
+                                                          const Icon(
+                                                            Icons.broken_image,
+                                                            size: 40,
+                                                          ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            contacts["contacts"][num]["name"],
+                                            style: const TextStyle(
+                                              fontFamily: "times new roman",
+                                              fontSize: 10,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        child: Hero(
+                          tag: contacts["contacts"][num]["name"],
+                          child: Container(
+                            height: 44,
+                            width: 44,
+                            child: ClipRRect(
+                              borderRadius: BorderRadiusGeometry.circular(10),
+                              child: RepaintBoundary(
+                                child: CachedNetworkImage(
+                                  filterQuality: FilterQuality.high,
+                                  imageUrl:
+                                      contacts["contacts"][num]["profile_pic"],
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => const Center(
+                                    child: SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        padding: EdgeInsets.all(5),
+                                        color: Colors.black,
+                                        constraints: BoxConstraints(
+                                          minWidth: 20,
+                                          minHeight: 20,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) =>
+                                      const Icon(Icons.broken_image),
+                                  memCacheWidth: 400,
+                                  fadeInDuration: Duration.zero,
+                                  fadeOutDuration: Duration.zero,
+                                ),
+                              ),
+                              // child: Image.network(contacts["contacts"][num]["profile_pic"]),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 9),
+                    SizedBox(
+                      width: 230,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(height: 5),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: SizedBox(
+                              width: 300,
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 210,
+                                    child: Text(
+                                      contacts["contacts"][num]["name"],
+                                      softWrap: true,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontFamily: "times new roman",
+                                        fontWeight: FontWeight.w500,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Row(
                             children: [
+                              SizedBox(width: 4),
                               SizedBox(
                                 width: 210,
                                 child: Text(
-                                  contacts["contacts"][num]["name"],
-                                  softWrap: true,
                                   overflow: TextOverflow.ellipsis,
+                                  contacts["contacts"][num]["last_message"]
+                                          .contains(SECRET_MARKER)
+                                      ? " ◯ Image"
+                                      : contacts["contacts"][num]["last_message"],
                                   style: TextStyle(
                                     fontFamily: "times new roman",
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 15,
+                                    fontSize: 13.5,
+                                    color: const Color.fromARGB(
+                                      255,
+                                      198,
+                                      196,
+                                      196,
+                                    ),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          SizedBox(width: 4),
-                          SizedBox(
-                            width: 210,
-                            child: Text(
-                              overflow: TextOverflow.ellipsis,
-                              contacts["contacts"][num]["last_message"]
-                                      .contains(SECRET_MARKER)
-                                  ? " ◯ Image"
-                                  : contacts["contacts"][num]["last_message"],
-                              style: TextStyle(
-                                fontFamily: "times new roman",
-                                fontSize: 13.5,
-                                color: const Color.fromARGB(255, 198, 196, 196),
-                              ),
-                            ),
-                          ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    Text(
+                      contacts["contacts"][num]["last_message_time"],
+                      style: TextStyle(
+                        fontSize: 8,
+                        fontFamily: "times new roman",
+                        color: isdark
+                            ? Colors.grey
+                            : const Color.fromARGB(255, 72, 71, 71),
+                      ),
+                    ),
+                    SizedBox(width: 7),
+                    contacts["contacts"][num]["msg_seen"] != "seen"
+                        ? Text("🚀", style: TextStyle(fontSize: 14))
+                        : SizedBox.shrink(),
+                  ],
                 ),
-                Text(
-                  contacts["contacts"][num]["last_message_time"],
-                  style: TextStyle(
-                    fontSize: 8,
-                    fontFamily: "times new roman",
-                    color: isdark
-                        ? Colors.grey
-                        : const Color.fromARGB(255, 72, 71, 71),
-                  ),
-                ),
-                SizedBox(width: 7),
-                contacts["contacts"][num]["msg_seen"] != "seen"
-                    ? Text("🚀", style: TextStyle(fontSize: 14))
-                    : SizedBox.shrink(),
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -174,9 +308,10 @@ class _MyHomePageState extends State<MyHomePage> {
     final response = await http.get(
       Uri.parse(master_url + "user_contacts/${email}"),
     );
-    contacts = jsonDecode(response.body);
-    print(contacts);
-    contacts = contacts;
+    all_contacts.value = jsonDecode(response.body);
+
+    final box = Hive.box('cache');
+    box.put('all_contacts', all_contacts.value);
 
     setState(() {});
   }
@@ -184,13 +319,12 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    contacts = contacts;
     Future.microtask(() {
       if (FirebaseAuth.instance.currentUser == null) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => LoginPage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
+            builder: (context) => LoginPage(toggleTheme: widget.toggleTheme),
           ),
         );
       }
@@ -225,7 +359,7 @@ class _MyHomePageState extends State<MyHomePage> {
             children: [
               ElevatedButton(
                 onPressed: () async {
-                  user_contacts();
+                  print(FirebaseAuth.instance.currentUser!.photoURL!);
                 },
                 child: Text("contacts"),
               ),
@@ -252,74 +386,98 @@ class _MyHomePageState extends State<MyHomePage> {
         centerTitle: true,
         elevation: 2,
         actions: [
-          InkWell(
-            borderRadius: BorderRadius.circular(17),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ChatbotPage()),
-              );
-            },
-            child: CircleAvatar(
-              maxRadius: 15,
-              backgroundColor: isdark
-                  ? const Color.fromARGB(78, 25, 50, 98)
-                  : kTextHint,
-              backgroundImage: AssetImage("assets/images/ai.png"),
-            ),
-          ),
+          // InkWell(
+          //   borderRadius: BorderRadius.circular(17),
+          //   onTap: () {
+          //     var box = Hive.box('cache');
+          //     print(box.toMap());
+          //   },
+          //   child: CircleAvatar(
+          //     maxRadius: 15,
+          //     backgroundColor: isdark
+          //         ? const Color.fromARGB(78, 25, 50, 98)
+          //         : kTextHint,
+          //     backgroundImage: AssetImage("assets/images/ai.png"),
+          //   ),
+          // ),
           SizedBox(width: 15),
           GestureDetector(
             onTap: () {
-        showMenu(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadiusGeometry.circular(20),
-          ),
-          popUpAnimationStyle: AnimationStyle(
-            duration: Duration(milliseconds: 200),
-            reverseDuration: Duration(milliseconds: 100),
-          ),
-          shadowColor: kAccentVariant,
-          elevation: 100,
-          context: context,
-          position: RelativeRect.fromLTRB(100, 80, 0, 0),
-          menuPadding: EdgeInsets.all(2),
-          items: [
-            PopupMenuItem(
-              value: "logout",
-              child: Row(
-                children: [
-                  Icon(Icons.logout, color: Colors.red),
-                  SizedBox(width: 10),
-                  Text("Logout"),
-                ],
-              ),
-            ),
-          ],
-        ).then((value) async{
-          if (value == "logout") {
-            await signOut();
-            if (FirebaseAuth.instance.currentUser == null) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) =>
-                      LoginPage(toggleTheme: widget.toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list),
+              showMenu(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadiusGeometry.circular(20),
                 ),
-              );
-            }
-          }
-        });
-      },
+                popUpAnimationStyle: AnimationStyle(
+                  duration: Duration(milliseconds: 200),
+                  reverseDuration: Duration(milliseconds: 100),
+                ),
+                shadowColor: kAccentVariant,
+                elevation: 100,
+                context: context,
+                position: RelativeRect.fromLTRB(100, 80, 0, 0),
+                menuPadding: EdgeInsets.all(2),
+                items: [
+                  PopupMenuItem(
+                    value: "logout",
+                    child: Row(
+                      children: [
+                        Icon(Icons.logout, color: Colors.red),
+                        SizedBox(width: 10),
+                        Text("Logout"),
+                      ],
+                    ),
+                  ),
+                ],
+              ).then((value) async {
+                if (value == "logout") {
+                  await signOut();
+                  if (FirebaseAuth.instance.currentUser == null) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            LoginPage(toggleTheme: widget.toggleTheme),
+                      ),
+                    );
+                  }
+                }
+              });
+            },
             child: Padding(
               padding: const EdgeInsets.only(right: 10),
-              child: CircleAvatar(
-                backgroundColor: Colors.white,
-                radius: 20,
-                backgroundImage:
-                    FirebaseAuth.instance.currentUser?.photoURL != null
-                    ? NetworkImage(FirebaseAuth.instance.currentUser!.photoURL!)
-                    : AssetImage("assets/images/spiderman.jpg"),
+              child: Container(
+                height: 43,
+                width: 43,
+                child: ClipRRect(
+                  borderRadius: BorderRadiusGeometry.circular(13),
+                  child: RepaintBoundary(
+                    child: CachedNetworkImage(
+                      filterQuality: FilterQuality.high,
+                      imageUrl: FirebaseAuth.instance.currentUser!.photoURL!,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            padding: EdgeInsets.all(5),
+                            color: Colors.black,
+                            constraints: BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.broken_image),
+                      memCacheWidth: 400,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                    ),
+                  ),
+                  // child: Image.network(contacts["contacts"][num]["profile_pic"]),
+                ),
               ),
             ),
           ),
@@ -333,25 +491,32 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ),
-      body: RefreshIndicator(
-        elevation: 10,
-        color: kAccentVariant,
-        onRefresh: _refresh,
-        child:
-            contacts["contact_count"] == null || contacts["contact_count"] == 0
-            ? ListView(
-                physics: AlwaysScrollableScrollPhysics(),
-                children: [
-                  Center(child: Lottie.asset("assets/lotties/rocket.json")),
-                ],
-              )
-            : ListView.builder(
-                physics: AlwaysScrollableScrollPhysics(),
-                itemCount: contacts["contact_count"],
-                itemBuilder: (context, index) {
-                  return chat_list(index);
-                },
-              ),
+      body: ValueListenableBuilder(
+        valueListenable: all_contacts,
+        builder: (_, value, _) {
+          final contacts = value;
+          return RefreshIndicator(
+            elevation: 10,
+            color: kAccentVariant,
+            onRefresh: _refresh,
+            child:
+                contacts["contact_count"] == null ||
+                    contacts["contact_count"] == 0
+                ? ListView(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    children: [
+                      Center(child: Lottie.asset("assets/lotties/rocket.json")),
+                    ],
+                  )
+                : ListView.builder(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    itemCount: contacts["contact_count"],
+                    itemBuilder: (context, index) {
+                      return chat_list(index);
+                    },
+                  ),
+          );
+        },
       ),
     );
   }

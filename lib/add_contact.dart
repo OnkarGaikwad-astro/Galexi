@@ -2,12 +2,19 @@ import 'dart:convert';
 
 import 'package:Galexi/chat_page.dart';
 import 'package:Galexi/essentials/colours.dart';
+import 'package:Galexi/essentials/data.dart';
 import 'package:Galexi/home_page.dart';
 import 'package:Galexi/main.dart';
+// import 'package:Galexi/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_launcher_icons/xml_templates.dart';
 import 'package:http/http.dart' as http;
+import 'package:lottie/lottie.dart';
+
+String master_url = "https://vercel-server-ivory-six.vercel.app/";
+bool isdark = true;
+
 
 class AddContact extends StatefulWidget {
   const AddContact({super.key});
@@ -16,7 +23,10 @@ class AddContact extends StatefulWidget {
 }
 
 class _AddContactState extends State<AddContact> {
-  Map<String, dynamic> result = all_users;
+
+  Map<String, dynamic> result = {
+    "count" : 0,"users" : []
+  };
   TextEditingController searchq = TextEditingController();
 
   @override
@@ -25,24 +35,66 @@ class _AddContactState extends State<AddContact> {
     fetch_all_users();
   }
 
-  void filterList() {
-    String query = searchq.text.toLowerCase();
-    result["users"] = all_users["users"].where((user) {
-      return user["user_id"].toString().toLowerCase().contains(query);
-    }).toList();
-    result["count"] = result["users"].length;
-    setState(() {});
-  }
+void filterList() {
+  String query = searchq.text.toLowerCase();
+  final allUsers = all_users_.value["users"];
 
-  /////  fetch all users //////
-  Future<void> fetch_all_users() async {
-    final response = await http.get(
-      Uri.parse(master_url + "all_users_info"),
-      headers: {"Content-Type": "application/json"},
-    );
-    all_users = jsonDecode(response.body);
-    setState(() {});
+  if (query.isEmpty) {
+    result["users"] = List.from(allUsers);
+  } else {
+    result["users"] = allUsers.where((user) {
+      return user["user_id"]
+          .toString()
+          .toLowerCase()
+          .contains(query);
+    }).toList();
   }
+  result["count"] = result["users"].length;
+  setState(() {});
+}
+
+Future<void> fetch_all_users() async {
+  final response = await http.get(
+    Uri.parse(master_url + "all_users_info"),
+    headers: {"Content-Type": "application/json"},
+  );
+  final data = jsonDecode(response.body);
+  setState(() {
+    all_users_.value = data;
+    result = data;
+  });
+}
+
+void showAddingContactPopup(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 16),
+            const Text(
+              "Adding contact…",
+              style: TextStyle(fontFamily: "cursive",fontSize: 15),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
 
   //////  add contact  ////
   Future<void> Add_user_contact(int num) async {
@@ -57,8 +109,10 @@ class _AddContactState extends State<AddContact> {
         "contact_id": result["users"][num]["user_id"],
       }),
     );
-    all_users = jsonDecode(response.body);
-    print(all_users);
+
+    ///////////
+    all_users_.value = jsonDecode(response.body);
+    print(all_users_.value);
     setState(() {});
   }
 
@@ -67,63 +121,67 @@ class _AddContactState extends State<AddContact> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text("Add Contacts",style: TextStyle(letterSpacing: 2,fontFamily: "times new roman"),),
+        title: GestureDetector(onTap: () {
+          print(result);
+        },child: Text("Add Contacts",style: TextStyle(letterSpacing: 2,fontFamily: "times new roman"),)),
       ),
       body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(height: 50,
-            width: 370,
-              child: TextField(
-                controller: searchq,
-                onChanged: (value) {
-                  filterList();
-                },
-                cursorColor: isdark
-                    ? const Color.fromARGB(255, 122, 218, 238)
-                    : kPrimaryVariant,
-                decoration: InputDecoration(
-                  prefixIcon: Icon(Icons.search, size: 25),
-                  hint: Text(
-                    "Find a star to chat with.....",
-                    style: TextStyle(
-                      letterSpacing: 2,
-                      fontFamily: "times new roman",
+        child: Center(
+          child: Column(
+            children: [
+              Container(height: 50,
+              width: 370,
+                child: TextField(
+                  controller: searchq,
+                  onChanged: (value) {
+                    filterList();
+                  },
+                  cursorColor: isdark
+                      ? const Color.fromARGB(255, 122, 218, 238)
+                      : kPrimaryVariant,
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(Icons.search, size: 25),
+                    hint: Text(
+                      "Find a star to chat with.....",
+                      style: TextStyle(
+                        letterSpacing: 2,
+                        fontFamily: "times new roman",
+                      ),
                     ),
-                  ),
-                  fillColor: const Color.fromARGB(104, 158, 158, 158),
-                  filled: true,
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      strokeAlign: BorderSide.strokeAlignCenter,
-                      color: kTextPrimary,
+                    fillColor: const Color.fromARGB(104, 158, 158, 158),
+                    filled: true,
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        strokeAlign: BorderSide.strokeAlignCenter,
+                        color: kTextPrimary,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      strokeAlign: BorderSide.strokeAlignCenter,
-                      color: kTextPrimary,
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        strokeAlign: BorderSide.strokeAlignCenter,
+                        color: kTextPrimary,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide(
-                      strokeAlign: BorderSide.strokeAlignCenter,
-                      color: kTextPrimary,
+                    border: OutlineInputBorder(
+                      borderSide: BorderSide(
+                        strokeAlign: BorderSide.strokeAlignCenter,
+                        color: kTextPrimary,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
                     ),
-                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
               ),
-            ),
-            SizedBox(height: 20),
-            Column(
-              children: List.generate(result["count"], (index) {
-                return chat_list(index);
-              }),
-            ),
-          ],
+              SizedBox(height: 20),
+              Column(
+                children: result["count"]==null?[SizedBox(height: 100,),LottieBuilder.asset("assets/lotties/hello.json")]:(result["count"] == 0? [SizedBox(height: 200,),LottieBuilder.asset("assets/lotties/loader_cat.json")] : List.generate(result["count"], (index) {
+                  return chat_list(index);
+                })),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -147,13 +205,15 @@ class _AddContactState extends State<AddContact> {
 
           onTap: () async {
             print("object");
+            showAddingContactPopup(context);
             await Add_user_contact(num);
-            user_contact();
+            await user_contact();
             print("done adding");
+            Navigator.pop(context);
             Navigator.pop(context);
           },
           child: Hero(
-            tag: "prof_page",
+            tag: result["users"][num]["name"],
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(15),

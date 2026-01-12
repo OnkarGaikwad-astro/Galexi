@@ -1,19 +1,18 @@
 import 'dart:convert';
+import 'package:Galexi/essentials/data.dart';
 import 'package:Galexi/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'firebase_options.dart';
 import 'home_page.dart';
 
 String master_url = "https://vercel-server-ivory-six.vercel.app/";
-
-Map<String, dynamic> contacts = {};
-Map<String, dynamic> msg_list = {};
-Map<String, dynamic> all_users = {};
 
 bool isdark = true;
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
@@ -56,13 +55,15 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 //////  MAIN  //////
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Hive.initFlutter();
+  await Hive.openBox('cache');
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await setupNotificationChannel();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(MyApp());
 }
-
-
 
 final GlobalKey<_MyAppState> appKey = GlobalKey<_MyAppState>();
 
@@ -81,7 +82,9 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void initState() {
+    
     super.initState();
+    retrive_data();
     update_last_seen();
     fetch_all_users();
     FirebaseMessaging.instance.requestPermission();
@@ -95,13 +98,18 @@ class _MyAppState extends State<MyApp> {
 
   //////   message database initialize /////
   Future<void> all_chats_list() async {
+    print("object");
     final email = FirebaseAuth.instance.currentUser?.email;
     final response = await http.get(
       Uri.parse(master_url + "all_chats/${email}"),
       headers: {"Content-Type": "application/json"},
     );
-    msg_list = jsonDecode(response.body);
-    print(msg_list);
+    all_msg_list.value = jsonDecode(response.body);
+
+    final box = Hive.box('cache');
+    box.put('all_msg_list', all_msg_list.value);
+
+    print(all_msg_list.value);
     setState(() {});
   }
 
@@ -111,14 +119,12 @@ class _MyAppState extends State<MyApp> {
       Uri.parse(master_url + "all_users_info"),
       headers: {"Content-Type": "application/json"},
     );
-    all_users = jsonDecode(response.body);
-    print(all_users);
+    all_users_.value = jsonDecode(response.body);
     setState(() {});
   }
 
-
   ////// update user last seen /////
-    Future<void> update_last_seen() async {
+  Future<void> update_last_seen() async {
     final email = FirebaseAuth.instance.currentUser?.email;
     final response = await http.post(
       Uri.parse(master_url + "update_last_seen/${email}"),
@@ -129,17 +135,29 @@ class _MyAppState extends State<MyApp> {
     setState(() {});
   }
 
+  Future<void> retrive_data() async {
+    final box = Hive.box('cache');
+    if (box.get('all_contacts') != null) {
+      all_contacts.value = Map<String, dynamic>.from(box.get('all_contacts'));
+    }
+    if (box.get('all_msg_list') != null) {
+      all_msg_list.value = Map<String, dynamic>.from(box.get('all_msg_list'));
+    }
+  }
+
   ////////  refresh contacts //////
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;
     final response = await http.get(
       Uri.parse(master_url + "user_contacts/${email}"),
     );
-    contacts = jsonDecode(response.body);
-    print(contacts);
+    all_contacts.value = jsonDecode(response.body);
+
+    final box = Hive.box('cache');
+    box.put('all_contacts', all_contacts.value);
+
     setState(() {});
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -150,8 +168,8 @@ class _MyAppState extends State<MyApp> {
       darkTheme: ThemeData.dark(),
       title: 'Galexi',
       home: FirebaseAuth.instance.currentUser != null
-          ? MyHomePage(toggleTheme: toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list)
-          : LoginPage(toggleTheme: toggleTheme,all_users: all_users,contacts: contacts,msg_list: msg_list ),
+          ? MyHomePage(toggleTheme: toggleTheme)
+          : LoginPage(toggleTheme: toggleTheme),
     );
   }
 }
