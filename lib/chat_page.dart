@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:Galexi/add_contact.dart';
-import 'package:Galexi/chatbot_page.dart';
-import 'package:Galexi/essentials/colours.dart';
-import 'package:Galexi/essentials/data.dart';
-import 'package:Galexi/main.dart';
+import 'package:Aera/add_contact.dart';
+import 'package:Aera/chatbot_page.dart';
+import 'package:Aera/essentials/colours.dart';
+import 'package:Aera/essentials/data.dart';
+import 'package:Aera/main.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -19,7 +19,7 @@ import 'package:lottie/lottie.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-String master_url = "https://vercel-server-ivory-six.vercel.app/";
+String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 
 class ChatPage extends StatefulWidget {
   final dynamic index;
@@ -180,6 +180,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             automaticallyImplyLeading: true,
             leading: IconButton(
               onPressed: () async {
+                HapticFeedback.selectionClick();
                 msg_sent = true;
                 setState(() {});
                 hideSendingPopup();
@@ -199,6 +200,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   child: InkWell(
                     borderRadius: BorderRadius.circular(10),
                     onTap: () {
+                      HapticFeedback.selectionClick();
                       print("BAR PRESSED 🚀");
                       showDialog(
                         context: context,
@@ -405,13 +407,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           ? 1
                           : chat["message_count"] - 1,
                       itemBuilder: (context, index) {
-                        if (chat["message_count"] == null ||
-                            chat["message_count"] == 0) {
+                        if (chat["message_count"] == null){
                           return Center(
                             child: Lottie.asset(
                               "assets/lotties/paperplane.json",
                             ),
                           );
+                        }if(chat["message_count"] == 0){
+                          return SizedBox.shrink();
                         }
                         int realIndex = (chat["message_count"] - 1) - index;
                         if (realIndex == 0) return SizedBox.shrink();
@@ -440,7 +443,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         padding: const EdgeInsets.only(bottom: 12, right: 10),
                         child: Container(
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
+                            borderRadius: BorderRadius.circular(10),
                             color: widget.isdark ? kTextPrimary : Colors.black,
                           ),
                           child: Padding(
@@ -449,7 +452,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               children: [
                                 ClipRRect(
                                   borderRadius: BorderRadiusGeometry.circular(
-                                    13,
+                                    10,
                                   ),
                                   child: Image.file(selectedImage!, height: 70),
                                 ),
@@ -497,13 +500,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           setState(() {});
                         },
                         onSubmitted: (value) async {
+                          HapticFeedback.selectionClick();
                           msg_sent = false;
                           setState(() {});
                           showSendingPopup(context, "Sending....");
                           final msg = type_msg.text;
                           type_msg.text = "";
+                          
                           await send_message(msg);
                           await all_chats_list();
+                          temp_msg = "";
                           hideSendingPopup();
                         },
                         controller: type_msg,
@@ -513,6 +519,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             icon: Icon(Icons.image),
                             color: kIcon,
                             onPressed: () async {
+                              HapticFeedback.selectionClick();
                               final File? image = await pickImageFromGallery();
                               if (image != null) {
                                 setState(() {
@@ -571,11 +578,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                       ),
                       child: IconButton(
                         onPressed: () async {
+                          HapticFeedback.selectionClick();
                           msg_sent = false;
                           setState(() {});
                           showSendingPopup(context, "Sending....");
                           final msg = type_msg.text;
                           type_msg.text = "";
+                          
                           if (msg != null) {
                             await send_message(msg);
                           }
@@ -583,6 +592,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             await uploadImageBase64(selectedImage!);
                           }
                           await all_chats_list();
+                          temp_msg="";
                           hideSendingPopup();
                           selectedImage = null;
                           setState(() {});
@@ -604,16 +614,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     bool imageloaded = false;
     return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         showDialog(
           context: context,
           builder: (context) {
             return Dialog(
-              child: InteractiveViewer(
-                minScale: 1,
-                maxScale: 5,
-                child: Image.network(
-                  filterQuality: FilterQuality.high,
-                  chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+              child: ClipRRect(
+                borderRadius: BorderRadiusGeometry.circular(20),
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 5,
+                  child: Image.network(
+                    filterQuality: FilterQuality.high,
+                    chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                  ),
                 ),
               ),
             );
@@ -621,6 +635,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         );
       },
       onLongPressStart: (details) {
+        HapticFeedback.lightImpact();
         showMenu(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadiusGeometry.circular(20),
@@ -756,15 +771,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     bool imageloaded = false;
     return GestureDetector(
       onTap: () {
+        HapticFeedback.selectionClick();
         showDialog(
           context: context,
           builder: (context) {
             return Dialog(
-              child: InteractiveViewer(
-                minScale: 1,
-                maxScale: 5,
-                child: Image.network(
-                  chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+              child: ClipRRect(
+                borderRadius: BorderRadiusGeometry.circular(20),
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 5,
+                  child: Image.network(
+                    chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                  ),
                 ),
               ),
             );
@@ -772,6 +791,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         );
       },
       onLongPressStart: (details) {
+        HapticFeedback.selectionClick();
         showMenu(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadiusGeometry.circular(20),
@@ -880,7 +900,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Future<File?> pickImageFromGallery() async {
     final ImagePicker picker = ImagePicker();
     final XFile? image = await picker.pickImage(
-      imageQuality: 10,
+      imageQuality: 20,
       source: ImageSource.gallery,
     );
     if (image != null) {
@@ -906,6 +926,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Widget recieved_msg(int no) {
     return GestureDetector(
       onLongPressStart: (details) {
+        HapticFeedback.selectionClick();
         showMenu(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadiusGeometry.circular(20),
@@ -1055,6 +1076,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Widget sended_msg(int no) {
     return GestureDetector(
       onLongPressStart: (details) {
+        HapticFeedback.selectionClick();
         showMenu(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadiusGeometry.circular(20),
@@ -1184,9 +1206,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           ),
         ),
       );
+      
     } else {
       return SizedBox.shrink();
     }
+    
   }
 
   ////////   clear_chat ///////

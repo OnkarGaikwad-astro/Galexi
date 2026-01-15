@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:Galexi/essentials/data.dart';
-import 'package:Galexi/login_page.dart';
+import 'package:Aera/essentials/data.dart';
+import 'package:Aera/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -12,7 +12,7 @@ import 'package:http/http.dart' as http;
 import 'firebase_options.dart';
 import 'home_page.dart';
 
-String master_url = "https://vercel-server-ivory-six.vercel.app/";
+String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 
 bool isdark = true;
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
@@ -166,7 +166,7 @@ class _MyAppState extends State<MyApp> {
       themeMode: isdark ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData.light(),
       darkTheme: ThemeData.dark(),
-      title: 'Galexi',
+      title: 'Aera',
       home: FirebaseAuth.instance.currentUser != null
           ? MyHomePage(toggleTheme: toggleTheme)
           : LoginPage(toggleTheme: toggleTheme),

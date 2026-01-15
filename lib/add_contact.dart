@@ -1,18 +1,17 @@
 import 'dart:convert';
 
-import 'package:Galexi/chat_page.dart';
-import 'package:Galexi/essentials/colours.dart';
-import 'package:Galexi/essentials/data.dart';
-import 'package:Galexi/home_page.dart';
-import 'package:Galexi/main.dart';
-// import 'package:Galexi/main.dart';
+import 'package:Aera/chat_page.dart';
+import 'package:Aera/essentials/colours.dart';
+import 'package:Aera/essentials/data.dart';
+import 'package:Aera/home_page.dart';
+import 'package:Aera/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_launcher_icons/xml_templates.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
 
-String master_url = "https://vercel-server-ivory-six.vercel.app/";
+String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 bool isdark = true;
 
 

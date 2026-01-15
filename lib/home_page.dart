@@ -1,21 +1,22 @@
-import 'package:Galexi/add_contact.dart';
-import 'package:Galexi/chat_page.dart';
-import 'package:Galexi/chatbot_page.dart';
-import 'package:Galexi/essentials/colours.dart';
-import 'package:Galexi/essentials/data.dart';
-import 'package:Galexi/login_page.dart';
+import 'package:Aera/add_contact.dart';
+import 'package:Aera/chat_page.dart';
+import 'package:Aera/chatbot_page.dart';
+import 'package:Aera/essentials/colours.dart';
+import 'package:Aera/essentials/data.dart';
+import 'package:Aera/login_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-// import 'package:Galexi/main.dart';
+// import 'package:Aera/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive/hive.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
 
-String master_url = "https://vercel-server-ivory-six.vercel.app/";
+String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
 bool isdark = true;
@@ -31,7 +32,6 @@ class _MyHomePageState extends State<MyHomePage> {
   /////////    refresh    ///////
 
   Future<void> _refresh() async {
-    await Future.delayed(Duration(seconds: 1));
     await user_contacts();
     setState(() {});
   }
@@ -63,14 +63,67 @@ class _MyHomePageState extends State<MyHomePage> {
           final contacts = value;
           return Padding(
             padding: const EdgeInsets.all(4.0),
-            child: InkWell(
-              splashFactory: NoSplash.splashFactory,
-              splashColor: Theme.of(context).brightness == Brightness.dark
-                  ? const Color.fromARGB(200, 255, 255, 255)
-                  : const Color.fromARGB(189, 0, 0, 0),
-              borderRadius: BorderRadius.circular(15),
+            child: GestureDetector(
+              onLongPressStart: (LongPressStartDetails details) async {
+                HapticFeedback.lightImpact();
+                final RenderBox overlay =
+                    Overlay.of(context).context.findRenderObject() as RenderBox;
+                final Offset position = details.globalPosition;
+                const double menuWidth = 180;
+                const double horizontalGap = 12;
+                double left = position.dx + horizontalGap;
+                double top = position.dy;
+                await showMenu(
+                  context: context,
+                  elevation: 100,
+                  shadowColor: kAccentVariant,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  popUpAnimationStyle: const AnimationStyle(
+                    duration: Duration(milliseconds: 200),
+                    reverseDuration: Duration(milliseconds: 100),
+                  ),
+                  menuPadding: const EdgeInsets.all(2),
+
+                  position: RelativeRect.fromLTRB(
+                    left,
+                    top,
+                    overlay.size.width - left - menuWidth,
+                    overlay.size.height - top,
+                  ),
+
+                  items: const [
+                    PopupMenuItem(
+                      value: "delete",
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete_rounded, color: Colors.red),
+                          SizedBox(width: 10),
+                          Text("Delete"),
+                        ],
+                      ),
+                    ),
+                  ],
+                ).then((value) async {
+                  if (value == "delete") {
+                    final email = FirebaseAuth.instance.currentUser?.email;
+                    final response = await http.delete(
+                      Uri.parse(
+                        master_url +
+                            "remove_contact/${email}/${contacts["contacts"][num]["id"]}",
+                      ),
+                      headers: {"Content-Type": "application/json"},
+                    );
+                    await user_contacts();
+                    print("removed");
+                    setState(() {});
+                  }
+                });
+              },
 
               onTap: () async {
+                HapticFeedback.selectionClick();
                 mark_msg_seen(contacts["contacts"][num]["id"]);
                 Navigator.push(
                   context,
@@ -94,6 +147,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(10),
                         onTap: () {
+                          HapticFeedback.vibrate();
                           showDialog(
                             context: context,
                             builder: (context) {
@@ -101,7 +155,6 @@ class _MyHomePageState extends State<MyHomePage> {
                                 child: Builder(
                                   builder: (context) {
                                     const double imageSize = 300;
-
                                     final double dpr = MediaQuery.of(
                                       context,
                                     ).devicePixelRatio;
@@ -185,35 +238,26 @@ class _MyHomePageState extends State<MyHomePage> {
                             height: 44,
                             width: 44,
                             child: ClipRRect(
-                              borderRadius: BorderRadiusGeometry.circular(10),
-                              child: RepaintBoundary(
-                                child: CachedNetworkImage(
-                                  filterQuality: FilterQuality.high,
-                                  imageUrl:
-                                      contacts["contacts"][num]["profile_pic"],
-                                  fit: BoxFit.cover,
-                                  placeholder: (context, url) => const Center(
-                                    child: SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        padding: EdgeInsets.all(5),
-                                        color: Colors.black,
-                                        constraints: BoxConstraints(
-                                          minWidth: 20,
-                                          minHeight: 20,
-                                        ),
-                                      ),
+                              borderRadius: BorderRadius.circular(10),
+                              child: CachedNetworkImage(
+                                imageUrl:
+                                    contacts["contacts"][num]["profile_pic"],
+                                fit: BoxFit.cover,
+                                fadeInDuration: Duration.zero,
+                                fadeOutDuration: Duration.zero,
+                            
+                                placeholder: (context, url) => const Center(
+                                  child: SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
                                     ),
                                   ),
-                                  errorWidget: (context, url, error) =>
-                                      const Icon(Icons.broken_image),
-                                  memCacheWidth: 400,
-                                  fadeInDuration: Duration.zero,
-                                  fadeOutDuration: Duration.zero,
                                 ),
+                                errorWidget: (context, url, error) =>
+                                    const Icon(Icons.broken_image),
                               ),
-                              // child: Image.network(contacts["contacts"][num]["profile_pic"]),
                             ),
                           ),
                         ),
@@ -377,7 +421,10 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
       appBar: AppBar(
         leading: IconButton(
-          onPressed: widget.toggleTheme,
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            widget.toggleTheme();
+          },
           icon: isdark
               ? Icon(Icons.dark_mode_outlined, size: 25)
               : Icon(Icons.light_mode_outlined),
@@ -403,6 +450,7 @@ class _MyHomePageState extends State<MyHomePage> {
           SizedBox(width: 15),
           GestureDetector(
             onTap: () {
+              HapticFeedback.lightImpact();
               showMenu(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadiusGeometry.circular(20),
@@ -450,31 +498,28 @@ class _MyHomePageState extends State<MyHomePage> {
                 width: 43,
                 child: ClipRRect(
                   borderRadius: BorderRadiusGeometry.circular(13),
-                  child: RepaintBoundary(
-                    child: CachedNetworkImage(
-                      filterQuality: FilterQuality.high,
-                      imageUrl: FirebaseAuth.instance.currentUser!.photoURL!,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            padding: EdgeInsets.all(5),
-                            color: Colors.black,
-                            constraints: BoxConstraints(
-                              minWidth: 20,
-                              minHeight: 20,
-                            ),
+                  child: CachedNetworkImage(
+                    filterQuality: FilterQuality.high,
+                    imageUrl: FirebaseAuth.instance.currentUser!.photoURL!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const Center(
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          padding: EdgeInsets.all(5),
+                          color: Colors.black,
+                          constraints: BoxConstraints(
+                            minWidth: 20,
+                            minHeight: 20,
                           ),
                         ),
                       ),
-                      errorWidget: (context, url, error) =>
-                          const Icon(Icons.broken_image),
-                      memCacheWidth: 400,
-                      fadeInDuration: Duration.zero,
-                      fadeOutDuration: Duration.zero,
                     ),
+                    errorWidget: (context, url, error) =>
+                        const Icon(Icons.broken_image),
+                    fadeInDuration: Duration.zero,
+                    fadeOutDuration: Duration.zero,
                   ),
                   // child: Image.network(contacts["contacts"][num]["profile_pic"]),
                 ),
@@ -483,7 +528,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
         title: Text(
-          "Galexi",
+          "Aera",
           style: TextStyle(
             fontFamily: "times new roman",
             letterSpacing: 17,

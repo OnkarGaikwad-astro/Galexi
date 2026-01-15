@@ -1,4 +1,4 @@
-name: Galexi
+name: Aera
 description: "A new Flutter project."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
@@ -60,9 +60,9 @@ dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/icons/galexi.png"
-  adaptive_icon_background: "#000000"   
-  adaptive_icon_foreground: "assets/icons/galexi.png"
+  image_path: "assets/icons/galexi_shape.png"
+  adaptive_icon_background: "#EAF2FF"   
+  adaptive_icon_foreground: "assets/icons/galexi_shape.png"
 
 dev_dependencies:
   flutter_test:
