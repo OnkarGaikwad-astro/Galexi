@@ -19,12 +19,11 @@ import 'package:lottie/lottie.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
-
+// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
+bool Isdark = true;
 class ChatPage extends StatefulWidget {
-  final dynamic index;
-  final dynamic isdark;
-  const ChatPage({super.key, required this.index, required this.isdark});
+  final dynamic ID;
+  const ChatPage({super.key, required this.ID,});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -58,7 +57,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
     print("contacts $contacts");
     final dynamic result = msg_list["chats"].firstWhere(
-      (c) => c["contact_id"] == contacts["contacts"][widget.index]["id"],
+      (c) => c["contact_id"] == contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"],
       orElse: () => null,
     );
     if (result == null) {
@@ -83,7 +82,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       headers: {"Content-Type": "application/json"},
       body: jsonEncode({
         "sender_id": await FirebaseAuth.instance.currentUser?.email,
-        "receiver_id": contacts["contacts"][widget.index]["id"],
+        "receiver_id": contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"],
         "msg": msg,
       }),
     );
@@ -99,7 +98,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     print("last_seen_fetch_start");
     final response = await http.get(
       Uri.parse(
-        master_url + "last_seen/${contacts["contacts"][widget.index]["id"]}",
+        master_url + "last_seen/${contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"]}",
       ),
       headers: {"Content-Type": "application/json"},
     );
@@ -131,6 +130,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    Isdark = Hive.box("isdark").get("isDark");
     fetch_chat();
     last_seen();
     WidgetsBinding.instance.addObserver(this);
@@ -176,6 +176,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         },
         child: Scaffold(
           resizeToAvoidBottomInset: true,
+          // backgroundColor: Colors.black,
           appBar: AppBar(
             automaticallyImplyLeading: true,
             leading: IconButton(
@@ -228,7 +229,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Hero(
-                                        tag: contacts["contacts"][widget.index]["name"],
+                                        tag: contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(
                                             20,
@@ -236,7 +237,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                           child: RepaintBoundary(
                                             child: CachedNetworkImage(
                                               imageUrl: highQualityUrl(
-                                                contacts["contacts"][widget.index]["profile_pic"],
+                                                contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["profile_pic"],
                                               ),
                                               width: imageSize,
                                               height: imageSize,
@@ -270,14 +271,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
-                                        contacts["contacts"][widget.index]["name"],
-                                        style: const TextStyle(
+                                        contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
+                                        style: TextStyle(
                                           fontFamily: "times new roman",
                                           fontSize: 10,
                                         ),
                                       ),
                                       SizedBox(height: 8),
-                                      contacts["contacts"][widget.index]["bio"]==""?SizedBox.shrink():Padding(
+                                      contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["bio"]==""?SizedBox.shrink():Padding(
                                         padding: const EdgeInsets.all(4.0),
                                         child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),color: kPrimaryVariant),width: 300,child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -286,7 +287,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                             Text("  Bio :",style: TextStyle(fontFamily: "cursive",fontWeight: FontWeight.w800),),
                                             Padding(
                                               padding: const EdgeInsets.only(left: 6,right: 6,bottom: 4),
-                                              child: Text(contacts["contacts"][widget.index]["bio"],style: TextStyle(fontFamily: "times new roman")),
+                                              child: Text(contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["bio"],style: TextStyle(fontFamily: "times new roman")),
                                             )
                                           ],
                                         ),),
@@ -306,7 +307,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         Padding(
                           padding: const EdgeInsets.all(4.0),
                           child: Hero(
-                            tag: contacts["contacts"][widget.index]["name"],
+                            tag:contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
                             child: Container(
                               height: 40,
                               width: 40,
@@ -315,8 +316,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 child: RepaintBoundary(
                                   child: CachedNetworkImage(
                                     imageUrl:
-                                        contacts["contacts"][widget
-                                            .index]["profile_pic"],
+                                        contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["profile_pic"],
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) => const Center(
                                       child: SizedBox(
@@ -353,8 +353,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 style: TextStyle(
                                   fontSize: 20,
                                   fontFamily: "times new roman",
+                                  color:  Isdark ? Colors.white:Colors.black
                                 ),
-                                contacts["contacts"][widget.index]["name"],
+                                contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
                                 softWrap: true,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -391,7 +392,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ],
-            backgroundColor: widget.isdark ? kSentMessage : kTextHint,
+            backgroundColor: Isdark ? kSentMessage : kTextHint,
           ),
           body: Stack(
             children: [
@@ -444,7 +445,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
-                            color: widget.isdark ? kTextPrimary : Colors.black,
+                            color: Isdark? kTextPrimary : Colors.black,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(2.0),
@@ -516,8 +517,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         cursorColor: Colors.teal,
                         decoration: InputDecoration(
                           prefixIcon: IconButton(
-                            icon: Icon(Icons.image),
-                            color: kIcon,
+                            icon: Icon(Icons.photo_size_select_actual_rounded),
+                            color: const Color.fromARGB(255, 150, 215, 245),
                             onPressed: () async {
                               HapticFeedback.selectionClick();
                               final File? image = await pickImageFromGallery();
@@ -544,15 +545,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           disabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide(
-                              color: (widget.isdark
-                                  ? Colors.white
+                              color: (Isdark
+                                  ? const Color.fromARGB(255, 255, 255, 255)
                                   : Colors.black),
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide(
-                              color: (widget.isdark
+                              color: (Isdark
                                   ? Colors.white
                                   : Colors.black),
                             ),
@@ -560,8 +561,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide(
-                              color: (widget.isdark
-                                  ? Colors.white
+                              color: (Isdark
+                                  ? const Color.fromARGB(255, 121, 120, 120)
                                   : Colors.black),
                             ),
                           ),
@@ -1221,7 +1222,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final response = await http.delete(
       Uri.parse(
         master_url +
-            "clear_chat/${email}/${contacts["contacts"][widget.index]["id"]}",
+            "clear_chat/${email}/${contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"]}",
       ),
       headers: {"Content-Type": "application/json"},
     );
@@ -1240,7 +1241,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final response = await http.delete(
       Uri.parse(
         master_url +
-            "delete_message/${email}/${contacts["contacts"][widget.index]["id"]}/${convo_id}",
+            "delete_message/${email}/${contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"]}/${convo_id}",
       ),
       headers: {"Content-Type": "application/json"},
     );

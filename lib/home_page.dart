@@ -16,7 +16,7 @@ import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
 
-String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
+// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
 bool isdark = true;
@@ -128,7 +128,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ChatPage(index: num, isdark: isdark),
+                    builder: (context) => ChatPage(ID: contacts["contacts"][num]["id"]),
                   ),
                 );
               },
@@ -363,6 +363,7 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    isdark = Hive.box("isdark").get("isDark");
     Future.microtask(() {
       if (FirebaseAuth.instance.currentUser == null) {
         Navigator.pushReplacement(
@@ -393,32 +394,32 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         },
       ),
-      drawerEdgeDragWidth: 100,
-      drawer: SafeArea(
-        left: true,
-        right: true,
-        bottom: true,
-        child: Drawer(
-          child: Column(
-            children: [
-              ElevatedButton(
-                onPressed: () async {
-                  print(FirebaseAuth.instance.currentUser!.photoURL!);
-                },
-                child: Text("contacts"),
-              ),
+      // drawerEdgeDragWidth: 100,
+      // drawer: SafeArea(
+      //   left: true,
+      //   right: true,
+      //   bottom: true,
+      //   child: Drawer(
+      //     child: Column(
+      //       children: [
+      //         ElevatedButton(
+      //           onPressed: () async {
+      //             print(FirebaseAuth.instance.currentUser!.photoURL!);
+      //           },
+      //           child: Text("contacts"),
+      //         ),
 
-              ElevatedButton(
-                onPressed: () async {
-                  String? token = await FirebaseMessaging.instance.getToken();
-                  print("FCM Token: $token");
-                },
-                child: Text("Token"),
-              ),
-            ],
-          ),
-        ),
-      ),
+      //         ElevatedButton(
+      //           onPressed: () async {
+      //             String? token = await FirebaseMessaging.instance.getToken();
+      //             print("FCM Token: $token");
+      //           },
+      //           child: Text("Token"),
+      //         ),
+      //       ],
+      //     ),
+      //   ),
+      // ),
       appBar: AppBar(
         leading: IconButton(
           onPressed: () {

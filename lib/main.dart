@@ -12,8 +12,6 @@ import 'package:http/http.dart' as http;
 import 'firebase_options.dart';
 import 'home_page.dart';
 
-String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
-
 bool isdark = true;
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
@@ -58,6 +56,7 @@ Future<void> main() async {
 
   await Hive.initFlutter();
   await Hive.openBox('cache');
+  await Hive.openBox('isdark');
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await setupNotificationChannel();
@@ -77,13 +76,14 @@ class _MyAppState extends State<MyApp> {
   void toggleTheme() {
     setState(() {
       isdark = !isdark;
+      Hive.box('isdark').put("isDark", isdark);
     });
   }
 
   @override
   void initState() {
-    
     super.initState();
+    isdark = Hive.box("isdark").get("isDark") != null?Hive.box("isdark").get("isDark"):true;
     retrive_data();
     update_last_seen();
     fetch_all_users();

@@ -11,7 +11,7 @@ import 'package:flutter_launcher_icons/xml_templates.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
 
-String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
+// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 bool isdark = true;
 
 

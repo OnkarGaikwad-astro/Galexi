@@ -48,7 +48,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
     );
 
     await engine.joinChannel(
-      token: "", // ✅ FREE MODE
+      token: "", 
       channelId: "chat_123",
       uid: 0,
       options: const ChannelMediaOptions(),

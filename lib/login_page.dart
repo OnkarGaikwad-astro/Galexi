@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:Aera/essentials/colours.dart';
+import 'package:Aera/essentials/data.dart';
 import 'package:Aera/home_page.dart';
 import 'package:Aera/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,7 +11,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
 
-String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
+// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 DateTime startTime = DateTime.now();
 
 TextEditingController bio_text = TextEditingController();
