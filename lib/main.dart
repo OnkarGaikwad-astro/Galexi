@@ -83,7 +83,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    isdark = Hive.box("isdark").get("isDark") != null?Hive.box("isdark").get("isDark"):true;
+    isdark = Hive.box("isdark").get("isDark") ?? true;
     retrive_data();
     update_last_seen();
     fetch_all_users();

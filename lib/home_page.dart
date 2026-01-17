@@ -363,7 +363,8 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
-    isdark = Hive.box("isdark").get("isDark");
+    isdark = Hive.box("isdark").get("isDark") ?? true;
+    Hive.box("isdark").put("isDark", isdark);
     Future.microtask(() {
       if (FirebaseAuth.instance.currentUser == null) {
         Navigator.pushReplacement(
