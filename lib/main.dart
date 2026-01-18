@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:Aera/chat_page.dart';
 import 'package:Aera/essentials/data.dart';
 import 'package:Aera/login_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,9 +14,11 @@ import 'firebase_options.dart';
 import 'home_page.dart';
 
 bool isdark = true;
+
 final FlutterLocalNotificationsPlugin fln = FlutterLocalNotificationsPlugin();
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
 
 Future<void> setupNotificationChannel() async {
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
@@ -30,6 +33,7 @@ Future<void> setupNotificationChannel() async {
       >()
       ?.createNotificationChannel(channel);
 }
+
 
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -50,6 +54,27 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
+
+void handleNotificationNavigation(RemoteMessage message) async{
+  print("FCM DATA: ${message.data}");
+  final type = message.data['type'];
+  await appKey.currentState?.all_chats_list();
+  if (type == 'chat') {
+    print("FCM DATA: ${message.data}");
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => ChatPage(ID:message.data["send_id"])
+      ),
+    );
+  }
+}
+
+
+
+final GlobalKey<NavigatorState> navigatorKey =
+    GlobalKey<NavigatorState>();
+
+
 //////  MAIN  //////
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,11 +86,21 @@ Future<void> main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await setupNotificationChannel();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+   // ✅ TERMINATED STATE
+  FirebaseMessaging.instance.getInitialMessage().then((message) {
+    if (message != null) {
+      handleNotificationNavigation(message);
+    }
+  });
+
+  // ✅ BACKGROUND STATE
+  FirebaseMessaging.onMessageOpenedApp.listen((message) {
+    handleNotificationNavigation(message);
+  });
   runApp(MyApp());
 }
 
 final GlobalKey<_MyAppState> appKey = GlobalKey<_MyAppState>();
-
 class MyApp extends StatefulWidget {
   MyApp() : super(key: appKey);
   @override
@@ -162,6 +197,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+       navigatorKey: navigatorKey, 
       debugShowCheckedModeBanner: false,
       themeMode: isdark ? ThemeMode.dark : ThemeMode.light,
       theme: ThemeData.light(),
