@@ -3,7 +3,9 @@ import 'package:Aera/chat_page.dart';
 import 'package:Aera/chatbot_page.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
+import 'package:Aera/essentials/functions.dart';
 import 'package:Aera/login_page.dart';
+import 'package:Aera/main.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 // import 'package:Aera/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -16,7 +18,6 @@ import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
 
-// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
 bool isdark = true;
@@ -47,9 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> mark_msg_seen(String other_user) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    final response = await http.patch(
-      Uri.parse(master_url + "mark_msg_seen/${email}/${other_user}"),
-    );
+    await chatApi.markLastMsgSeen(email!, other_user);
     await user_contacts();
     setState(() {});
   }
@@ -107,14 +106,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ).then((value) async {
                   if (value == "delete") {
-                    final email = FirebaseAuth.instance.currentUser?.email;
-                    final response = await http.delete(
-                      Uri.parse(
-                        master_url +
-                            "remove_contact/${email}/${contacts["contacts"][num]["id"]}",
-                      ),
-                      headers: {"Content-Type": "application/json"},
-                    );
+                    final email = await FirebaseAuth.instance.currentUser?.email;
+                   await chatApi.removeContactAndClearChat(email!,contacts["contacts"][num]["id"]);
                     await user_contacts();
                     print("removed");
                     setState(() {});
@@ -128,7 +121,8 @@ class _MyHomePageState extends State<MyHomePage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ChatPage(ID: contacts["contacts"][num]["id"]),
+                    builder: (context) =>
+                        ChatPage(ID: contacts["contacts"][num]["id"]),
                   ),
                 );
               },
@@ -245,7 +239,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 fit: BoxFit.cover,
                                 fadeInDuration: Duration.zero,
                                 fadeOutDuration: Duration.zero,
-                            
+
                                 placeholder: (context, url) => const Center(
                                   child: SizedBox(
                                     height: 20,
@@ -349,11 +343,13 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    final response = await http.get(
-      Uri.parse(master_url + "user_contacts/${email}"),
-    );
-    all_contacts.value = jsonDecode(response.body);
-
+    // final response = await http.get(
+    //   Uri.parse(master_url + "user_contacts/${email}"),
+    // );
+    // all_contacts.value = jsonDecode(response.body);
+    final a = await chatApi.getUserContacts(email!);
+    all_contacts.value = a;
+    print("🚀 🚀 : ${a}");
     final box = Hive.box('cache');
     box.put('all_contacts', all_contacts.value);
 
@@ -395,32 +391,6 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         },
       ),
-      // drawerEdgeDragWidth: 100,
-      // drawer: SafeArea(
-      //   left: true,
-      //   right: true,
-      //   bottom: true,
-      //   child: Drawer(
-      //     child: Column(
-      //       children: [
-      //         ElevatedButton(
-      //           onPressed: () async {
-      //             print(FirebaseAuth.instance.currentUser!.photoURL!);
-      //           },
-      //           child: Text("contacts"),
-      //         ),
-
-      //         ElevatedButton(
-      //           onPressed: () async {
-      //             String? token = await FirebaseMessaging.instance.getToken();
-      //             print("FCM Token: $token");
-      //           },
-      //           child: Text("Token"),
-      //         ),
-      //       ],
-      //     ),
-      //   ),
-      // ),
       appBar: AppBar(
         leading: IconButton(
           onPressed: () {
@@ -435,20 +405,34 @@ class _MyHomePageState extends State<MyHomePage> {
         centerTitle: true,
         elevation: 2,
         actions: [
-          // InkWell(
-          //   borderRadius: BorderRadius.circular(17),
-          //   onTap: () {
-          //     var box = Hive.box('cache');
-          //     print(box.toMap());
-          //   },
-          //   child: CircleAvatar(
-          //     maxRadius: 15,
-          //     backgroundColor: isdark
-          //         ? const Color.fromARGB(78, 25, 50, 98)
-          //         : kTextHint,
-          //     backgroundImage: AssetImage("assets/images/ai.png"),
-          //   ),
-          // ),
+          InkWell(
+            borderRadius: BorderRadius.circular(17),
+            onTap: () async {
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) {
+              //       return ChatbotPage();
+              //     },
+              //   ),
+              // );
+             
+             
+              final email = await FirebaseAuth.instance.currentUser?.email;
+              final a = await chatApi.getLastSeen("onkar.gaikwad@iitgn.ac.in");
+              print("\n");
+              print("📷📷📷 done  ${a}");
+              print("\n");
+              print("🚀 ${a}");
+            },
+            child: CircleAvatar(
+              maxRadius: 15,
+              backgroundColor: isdark
+                  ? const Color.fromARGB(78, 25, 50, 98)
+                  : kTextHint,
+              backgroundImage: AssetImage("assets/images/ai.png"),
+            ),
+          ),
           SizedBox(width: 15),
           GestureDetector(
             onTap: () {

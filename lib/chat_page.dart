@@ -19,11 +19,11 @@ import 'package:lottie/lottie.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 bool Isdark = true;
+
 class ChatPage extends StatefulWidget {
   final dynamic ID;
-  const ChatPage({super.key, required this.ID,});
+  const ChatPage({super.key, required this.ID});
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -57,8 +57,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
     print("contacts $contacts");
     final dynamic result = msg_list["chats"].firstWhere(
-      (c) => c["contact_id"] == contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"],
-      orElse: () => null,
+      (c) =>
+          c["contact_id"] ==
+          contacts["contacts"][contacts["contacts"].indexWhere(
+            (e) => e['id'] == widget.ID,
+          )]["id"],
+      orElse: () => <String, dynamic>{},
     );
     if (result == null) {
       print("null");
@@ -76,17 +80,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   ///////   send message   ////
   Future<void> send_message(String msg) async {
-    final contacts = all_contacts.value;
-    final response = await http.post(
-      Uri.parse(master_url + "add_message"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "sender_id": await FirebaseAuth.instance.currentUser?.email,
-        "receiver_id": contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"],
-        "msg": msg,
-      }),
-    );
-    print("msg sent $response.body");
+    final email = await FirebaseAuth.instance.currentUser?.email;
+    await chatApi.addMessage(email!, widget.ID, msg);
+    print("\n\n");
+    print("🚀🚀🚀🚀 msg sent");
   }
 
   ///// sender_last_seen  /////
@@ -96,31 +93,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       all_contacts.value,
     );
     print("last_seen_fetch_start");
-    final response = await http.get(
-      Uri.parse(
-        master_url + "last_seen/${contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"]}",
-      ),
-      headers: {"Content-Type": "application/json"},
-    );
-    sender_last_seen = jsonDecode(response.body)["last_seen"].toString();
+    final response = await chatApi.getLastSeen(widget.ID);
+    sender_last_seen = response!;
     setState(() {});
     print("🚀last_seeen_fetched");
-    print(jsonDecode(response.body)["last_seen"].toString());
+    print(response);
   }
 
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
     final email = FirebaseAuth.instance.currentUser?.email;
-    final response = await http.get(
-      Uri.parse(master_url + "all_chats/${email}"),
-      headers: {"Content-Type": "application/json"},
-    );
-    all_msg_list.value = Map<String, dynamic>.from(jsonDecode(response.body));
+    all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
     final box = Hive.box('cache');
     await box.put('all_msg_list', all_msg_list.value);
-    print("😅 SAVEX");
-    print(all_msg_list.value);
-    print(all_msg_list.value);
+    print("🚀🚀🚀 : all chat list fetched success line 119 chatpage");
+    setState(() {});
     await fetch_chat();
     msg_sent = true;
     setState(() {});
@@ -144,18 +131,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     });
   }
 
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
   // ///  refresh msgs when app resumes from home /////
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      all_chats_list(); // 🔑 refresh messages
+      all_chats_list();
     }
   }
 
@@ -229,7 +210,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Hero(
-                                        tag: contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
+                                        tag:
+                                            contacts["contacts"][contacts["contacts"]
+                                                .indexWhere(
+                                                  (e) => e['id'] == widget.ID,
+                                                )]["name"],
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(
                                             20,
@@ -237,7 +222,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                           child: RepaintBoundary(
                                             child: CachedNetworkImage(
                                               imageUrl: highQualityUrl(
-                                                contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["profile_pic"],
+                                                contacts["contacts"][contacts["contacts"]
+                                                    .indexWhere(
+                                                      (e) =>
+                                                          e['id'] == widget.ID,
+                                                    )]["profile_pic"],
                                               ),
                                               width: imageSize,
                                               height: imageSize,
@@ -269,30 +258,78 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
+                                      const SizedBox(height: 3),
                                       Text(
-                                        contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
+                                        contacts["contacts"][contacts["contacts"]
+                                            .indexWhere(
+                                              (e) => e['id'] == widget.ID,
+                                            )]["name"],
                                         style: TextStyle(
                                           fontFamily: "times new roman",
                                           fontSize: 10,
                                         ),
                                       ),
-                                      SizedBox(height: 8),
-                                      contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["bio"]==""?SizedBox.shrink():Padding(
-                                        padding: const EdgeInsets.all(4.0),
-                                        child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(15),color: kPrimaryVariant),width: 300,child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            // SizedBox(height: 3,),
-                                            Text("  Bio :",style: TextStyle(fontFamily: "cursive",fontWeight: FontWeight.w800),),
-                                            Padding(
-                                              padding: const EdgeInsets.only(left: 6,right: 6,bottom: 4),
-                                              child: Text(contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["bio"],style: TextStyle(fontFamily: "times new roman")),
-                                            )
-                                          ],
-                                        ),),
+                                      SizedBox(
+                                        height: 8,
+                                        child: Text(
+                                          widget.ID,
+                                          style: TextStyle(fontSize: 5),
+                                        ),
                                       ),
-                                      SizedBox(height: 7,)
+                                      contacts["contacts"][contacts["contacts"]
+                                                  .indexWhere(
+                                                    (e) => e['id'] == widget.ID,
+                                                  )]["bio"] ==
+                                              ""
+                                          ? SizedBox.shrink()
+                                          : Padding(
+                                              padding: const EdgeInsets.all(
+                                                4.0,
+                                              ),
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.circular(15),
+                                                  color: kPrimaryVariant,
+                                                ),
+                                                width: 300,
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      "  Bio :",
+                                                      style: TextStyle(
+                                                        fontFamily: "cursive",
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                    Padding(
+                                                      padding:
+                                                          const EdgeInsets.only(
+                                                            left: 6,
+                                                            right: 6,
+                                                            bottom: 4,
+                                                          ),
+                                                      child: Text(
+                                                        contacts["contacts"][contacts["contacts"]
+                                                            .indexWhere(
+                                                              (e) =>
+                                                                  e['id'] ==
+                                                                  widget.ID,
+                                                            )]["bio"],
+                                                        style: TextStyle(
+                                                          fontFamily:
+                                                              "times new roman",
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                      SizedBox(height: 7),
                                     ],
                                   ),
                                 );
@@ -307,7 +344,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         Padding(
                           padding: const EdgeInsets.all(4.0),
                           child: Hero(
-                            tag:contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
+                            tag:
+                                contacts["contacts"][contacts["contacts"]
+                                    .indexWhere(
+                                      (e) => e['id'] == widget.ID,
+                                    )]["name"],
                             child: Container(
                               height: 40,
                               width: 40,
@@ -316,7 +357,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 child: RepaintBoundary(
                                   child: CachedNetworkImage(
                                     imageUrl:
-                                        contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["profile_pic"],
+                                        contacts["contacts"][contacts["contacts"]
+                                            .indexWhere(
+                                              (e) => e['id'] == widget.ID,
+                                            )]["profile_pic"],
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) => const Center(
                                       child: SizedBox(
@@ -351,11 +395,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             children: [
                               Text(
                                 style: TextStyle(
-                                  fontSize: 20,
-                                  fontFamily: "times new roman",
-                                  color:  Isdark ? Colors.white:Colors.black
+                                  fontSize: 25,
+                                  fontFamily: "cursive",
+                                  color: Isdark ? Colors.white : Colors.black,
                                 ),
-                                contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["name"],
+                                contacts["contacts"][contacts["contacts"]
+                                    .indexWhere(
+                                      (e) => e['id'] == widget.ID,
+                                    )]["name"],
                                 softWrap: true,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -408,17 +455,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           ? 1
                           : chat["message_count"] - 1,
                       itemBuilder: (context, index) {
-                        if (chat["message_count"] == null){
-                          return Center(
-                            child: Lottie.asset(
-                              "assets/lotties/paperplane.json",
-                            ),
-                          );
-                        }if(chat["message_count"] == 0){
+                        if (chat["message_count"] == null) {
+                          return Center(child: SizedBox.shrink());
+                        }
+                        if (chat["message_count"] == 0) {
                           return SizedBox.shrink();
                         }
                         int realIndex = (chat["message_count"] - 1) - index;
-                        if (realIndex == 0) return SizedBox.shrink();
+                        if (chat["messages"][realIndex]["msg"] == "")
+                          return SizedBox.shrink();
                         return chat["messages"][realIndex]["user_sent"] == "no"
                             ? (chat["messages"][realIndex]["msg"].contains(
                                     SECRET_MARKER,
@@ -445,7 +490,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         child: Container(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
-                            color: Isdark? kTextPrimary : Colors.black,
+                            color: Isdark ? kTextPrimary : Colors.black,
                           ),
                           child: Padding(
                             padding: const EdgeInsets.all(2.0),
@@ -507,7 +552,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           showSendingPopup(context, "Sending....");
                           final msg = type_msg.text;
                           type_msg.text = "";
-                          
+
                           await send_message(msg);
                           await all_chats_list();
                           temp_msg = "";
@@ -553,9 +598,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(15),
                             borderSide: BorderSide(
-                              color: (Isdark
-                                  ? Colors.white
-                                  : Colors.black),
+                              color: (Isdark ? Colors.white : Colors.black),
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
@@ -585,7 +628,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           showSendingPopup(context, "Sending....");
                           final msg = type_msg.text;
                           type_msg.text = "";
-                          
+
                           if (msg != null) {
                             await send_message(msg);
                           }
@@ -593,7 +636,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             await uploadImageBase64(selectedImage!);
                           }
                           await all_chats_list();
-                          temp_msg="";
+                          temp_msg = "";
                           hideSendingPopup();
                           selectedImage = null;
                           setState(() {});
@@ -676,11 +719,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            PopupMenuItem(
+              child: Row(
+                children: [
+                  SizedBox(width: 20,),
+                  Text(chat["messages"][no]["timestamp"],style: TextStyle(color: Colors.blueGrey,fontFamily: "times new roman"),),
+                ],
+              ),
+            ),
           ],
         ).then((value) async {
           if (value == "delete") {
             showSendingPopup(context, "Deleting...");
-            delete_msg(no);
+            delete_msg(chat["messages"][no]["conversation_id"]);
           }
           if (value == "save_img") {
             showSendingPopup(context, "Saving...");
@@ -836,7 +887,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ).then((value) async {
           if (value == "delete") {
             showSendingPopup(context, "Deleting...");
-            delete_msg(no);
+            delete_msg(chat["messages"][no]["conversation_id"]);
           }
           if (value == "save_img") {
             showSendingPopup(context, "Saving...");
@@ -913,13 +964,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   //// upload image to database //////
   Future<void> uploadImageBase64(File imageFile) async {
     final bytes = await imageFile.readAsBytes();
-    final response = await http.post(
-      Uri.parse("${master_url}upload_image"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({"file": base64Encode(bytes)}),
-    );
-    print("🚀${jsonDecode(response.body)["url"]}");
-    await send_message("${SECRET_MARKER}${jsonDecode(response.body)["url"]}");
+    // final response = await http.post(
+    //   Uri.parse("${master_url}upload_image"),
+    //   headers: {"Content-Type": "application/json"},
+    //   body: jsonEncode({"file": base64Encode(bytes)}),
+    // );
+    final url = await chatApi.uploadImageBase64(base64Encode(bytes));
+    print("\n");
+    print("🚀url 📷${url}");
+    print("\n");
+    await send_message("${SECRET_MARKER}${url}");
     setState(() {});
   }
 
@@ -974,7 +1028,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ).then((value) {
           if (value == "delete") {
             showSendingPopup(context, "Deleting...");
-            delete_msg(no);
+            delete_msg(chat["messages"][no]["conversation_id"]);
           }
           ;
           if (value == "Copy") {
@@ -1124,7 +1178,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ).then((value) {
           if (value == "delete") {
             showSendingPopup(context, "Deleting...");
-            delete_msg(no);
+            delete_msg(chat["messages"][no]["conversation_id"]);
           }
           ;
           if (value == "Copy") {
@@ -1207,11 +1261,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           ),
         ),
       );
-      
     } else {
       return SizedBox.shrink();
     }
-    
   }
 
   ////////   clear_chat ///////
@@ -1219,38 +1271,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final contacts = all_contacts.value;
     showSendingPopup(context, "Clearing ...");
     final email = FirebaseAuth.instance.currentUser?.email;
-    final response = await http.delete(
-      Uri.parse(
-        master_url +
-            "clear_chat/${email}/${contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"]}",
-      ),
-      headers: {"Content-Type": "application/json"},
-    );
+    await chatApi.clearChat(email!, widget.ID);
     await all_chats_list();
-    await fetch_chat();
+    hideSendingPopup();
     user_contact();
     setState(() {});
-    print(response.body);
-    hideSendingPopup();
+    print("🚀🚀🚀 cleared chat line 1230 ");
   }
 
   ////// delete message  //////
   Future<void> delete_msg(int convo_id) async {
-    final contacts = all_contacts.value;
-    final email = FirebaseAuth.instance.currentUser?.email;
-    final response = await http.delete(
-      Uri.parse(
-        master_url +
-            "delete_message/${email}/${contacts["contacts"][contacts["contacts"].indexWhere((e) => e['id'] == widget.ID)]["id"]}/${convo_id}",
-      ),
-      headers: {"Content-Type": "application/json"},
-    );
+    final email = FirebaseAuth.instance.currentUser!.email!;
+    await chatApi.deleteSingleMessage(email, widget.ID, convo_id);
     await all_chats_list();
-    await fetch_chat();
     hideSendingPopup();
     user_contact();
     setState(() {});
-    print(response.body);
+    print("🚀🚀🚀 deleted msg line 1243 ");
   }
 
   /////  refresh contacts   //////

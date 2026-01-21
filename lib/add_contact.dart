@@ -11,7 +11,6 @@ import 'package:flutter_launcher_icons/xml_templates.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
 
-// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 bool isdark = true;
 
 
@@ -34,32 +33,16 @@ class _AddContactState extends State<AddContact> {
     fetch_all_users();
   }
 
-void filterList() {
+void filterList() async{
   String query = searchq.text.toLowerCase();
-  final allUsers = all_users_.value["users"];
-
-  if (query.isEmpty) {
-    result["users"] = List.from(allUsers);
-  } else {
-    result["users"] = allUsers.where((user) {
-      return user["user_id"]
-          .toString()
-          .toLowerCase()
-          .contains(query);
-    }).toList();
-  }
+  result["users"] = await chatApi.searchUsers(query);
   result["count"] = result["users"].length;
   setState(() {});
 }
 
 Future<void> fetch_all_users() async {
-  final response = await http.get(
-    Uri.parse(master_url + "all_users_info"),
-    headers: {"Content-Type": "application/json"},
-  );
-  final data = jsonDecode(response.body);
+  final data = await chatApi.getAllUsers();
   setState(() {
-    all_users_.value = data;
     result = data;
   });
 }
@@ -100,18 +83,10 @@ void showAddingContactPopup(BuildContext context) {
     final email = await FirebaseAuth.instance.currentUser?.email;
     print(email);
     print(result["users"][num]["user_id"]);
-    final response = await http.post(
-      Uri.parse(master_url + "add_contact"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "user_id": email,
-        "contact_id": result["users"][num]["user_id"],
-      }),
-    );
-
-    ///////////
-    all_users_.value = jsonDecode(response.body);
-    print(all_users_.value);
+    final a = await chatApi.addContact(email!, result["users"][num]["user_id"]);
+    print("🚀 ${a}");
+    print("\n");
+    print("\n");
     setState(() {});
   }
 
@@ -262,6 +237,9 @@ void showAddingContactPopup(BuildContext context) {
                             ),
                           ),
                         ),
+                        SizedBox(
+                          child: Text(style: TextStyle(color: Colors.grey),result["users"][num]["user_id"],softWrap: true,overflow: TextOverflow.ellipsis,),
+                        )
                       ],
                     ),
                   ),

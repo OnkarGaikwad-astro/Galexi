@@ -11,7 +11,6 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
 
-// String master_url = "https://messenger-api-86895289380.asia-south1.run.app/";
 DateTime startTime = DateTime.now();
 
 TextEditingController bio_text = TextEditingController();
@@ -27,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
 
   
 ///// navigator  //////
-///
+
   @override
   void initState() {
     super.initState();
@@ -46,23 +45,23 @@ class _LoginPageState extends State<LoginPage> {
 
   //////  Save user info  //////
 
-  Future<void> save_user(String bio) async {
-    final token = await FirebaseMessaging.instance.getToken();
-    final response = await http.post(
-      Uri.parse(master_url + "save_user"),
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "user_id": await FirebaseAuth.instance.currentUser?.email,
-        "name": await FirebaseAuth.instance.currentUser?.displayName,
-        "fcm_token": token,
-        "bio": bio,
-        "profile_pic": await FirebaseAuth.instance.currentUser?.photoURL,
-        "phone_no": await FirebaseAuth.instance.currentUser?.phoneNumber,
-      }),
-    );
-    print(response.body);
-    print("phone number:${FirebaseAuth.instance.currentUser?.phoneNumber}");
-  }
+  // Future<void> save_user(String bio) async {
+  //   final token = await FirebaseMessaging.instance.getToken();
+  //   final response = await http.post(
+  //     Uri.parse(master_url + "save_user"),
+  //     headers: {"Content-Type": "application/json"},
+  //     body: jsonEncode({
+  //       "user_id": await FirebaseAuth.instance.currentUser?.email,
+  //       "name": await FirebaseAuth.instance.currentUser?.displayName,
+  //       "fcm_token": token,
+  //       "bio": bio,
+  //       "profile_pic": await FirebaseAuth.instance.currentUser?.photoURL,
+  //       "phone_no": await FirebaseAuth.instance.currentUser?.phoneNumber,
+  //     }),
+  //   );
+  //   print(response.body);
+  //   print("phone number:${FirebaseAuth.instance.currentUser?.phoneNumber}");
+  // }
 
 
 
@@ -220,7 +219,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       onPressed: () {
-                        save_user(bio_text.text);
+                        chatApi.saveUser(bio_text.text);
                         Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
