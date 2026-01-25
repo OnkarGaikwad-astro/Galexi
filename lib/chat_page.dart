@@ -6,6 +6,7 @@ import 'package:Aera/chatbot_page.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
 import 'package:Aera/main.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -18,8 +19,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:media_scanner/media_scanner.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 bool Isdark = true;
+bool noti = false;
 
 class ChatPage extends StatefulWidget {
   final dynamic ID;
@@ -30,7 +33,6 @@ class ChatPage extends StatefulWidget {
 }
 
 TextEditingController type_msg = TextEditingController();
-
 String sender_last_seen = "";
 String SECRET_MARKER = '\u{E000}';
 bool msg_sent = true;
@@ -43,19 +45,30 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     "message_count": 0,
     "messages": <dynamic>[],
   };
-
   File? selectedImage;
+  late RealtimeChannel typingChannel;
+  bool otherUserTyping = false;
+
+  static final AudioPlayer _player = AudioPlayer();
+  static Future<void> playClick() async {
+    await _player.stop(); // avoid overlap
+    await _player.play(AssetSource('sounds/happy-pop-3.mp3'), volume: 1.0);
+    print("played");
+  }
+
+  static Future<void> receivedsound() async {
+    await _player.stop(); // avoid overlap
+    await _player.play(AssetSource('sounds/receive.mp3'), volume: 1.0);
+    print("played");
+  }
 
   Future<void> fetch_chat() async {
-    print("🚀");
     final Map<String, dynamic> msg_list = Map<String, dynamic>.from(
       all_msg_list.value,
     );
-    print("msg_list $msg_list");
     final Map<String, dynamic> contacts = Map<String, dynamic>.from(
       all_contacts.value,
     );
-    print("contacts $contacts");
     final dynamic result = msg_list["chats"].firstWhere(
       (c) =>
           c["contact_id"] ==
@@ -65,26 +78,39 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       orElse: () => <String, dynamic>{},
     );
     if (result == null) {
-      print("null");
       chat = {"message_count": 0, "messages": []};
     } else {
-      print("hello");
       chat = Map<String, dynamic>.from(result);
-      print("chat:${chat}");
     }
-    print("chat:${chat}");
-    print("result:${result}");
-    print("all_msg_list.value:${all_msg_list.value}");
     setState(() {});
   }
 
   ///////   send message   ////
   Future<void> send_message(String msg) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessage(email!, widget.ID, msg);
-    print("\n\n");
+    await chatApi.addMessageFast(email!, widget.ID, msg);
+    print("📖📖📖📖📖📖📖 ");
+    if (msg != "") playClick();
+    await all_chats_list();
+    user_contact();
+    // print("\n\n");
     print("🚀🚀🚀🚀 msg sent");
   }
+
+  //   void addMessageToLocalChat(String msg) {
+  //   chat["messages"].add({
+  //     "msg": msg,
+  //     "sender_id": FirebaseAuth.instance.currentUser!.email,
+  //     "receiver_id": widget.ID,
+  //     "timestamp": DateTime.now().toString(),
+  //     "conversation_id": chat["message_count"] + 1,
+  //     "user_sent": "yes",
+  //   });
+
+  //   chat["message_count"]++;
+
+  //   setState(() {});
+  // }
 
   ///// sender_last_seen  /////
 
@@ -97,33 +123,40 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     sender_last_seen = response!;
     setState(() {});
     print("🚀last_seeen_fetched");
-    print(response);
+    // print(response);
   }
 
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
+    msg_sent = true;
     final email = FirebaseAuth.instance.currentUser?.email;
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
     final box = Hive.box('cache');
     await box.put('all_msg_list', all_msg_list.value);
-    print("🚀🚀🚀 : all chat list fetched success line 119 chatpage");
+    print("🚀🚀🚀 : all chat list fetched success line 126 chatpage");
     setState(() {});
     await fetch_chat();
     msg_sent = true;
     setState(() {});
   }
 
+  String buildChatId(String a, String b) {
+    final pair = [a, b]..sort();
+    return pair.join("__");
+  }
+
   ///
   @override
   void initState() {
+    noti = true;
     super.initState();
     Isdark = Hive.box("isdark").get("isDark");
     fetch_chat();
     last_seen();
     WidgetsBinding.instance.addObserver(this);
-
     all_chats_list();
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
+      if (noti) receivedsound();
       last_seen();
       await all_chats_list();
       setState(() {});
@@ -151,21 +184,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         canPop: true, // allow back navigation
         onPopInvoked: (didPop) {
           if (didPop) {
+            noti = false;
             print("🚀DEVICE BACK BUTTON PRESSED");
-            hideSendingPopup();
           }
         },
         child: Scaffold(
           resizeToAvoidBottomInset: true,
-          // backgroundColor: Colors.black,
           appBar: AppBar(
             automaticallyImplyLeading: true,
             leading: IconButton(
               onPressed: () async {
                 HapticFeedback.selectionClick();
+                noti = false;
                 msg_sent = true;
                 setState(() {});
-                hideSendingPopup();
                 user_contact();
                 Navigator.pop(context);
                 setState(() {});
@@ -406,6 +438,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 softWrap: true,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              Text(
+                                otherUserTyping ? "typing..." : "",
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontFamily: "cursive",
+                                  color: Isdark ? Colors.white : Colors.black,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -453,7 +493,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           (chat["message_count"] == null ||
                               chat["message_count"] == 0)
                           ? 1
-                          : chat["message_count"] - 1,
+                          : chat["message_count"],
                       itemBuilder: (context, index) {
                         if (chat["message_count"] == null) {
                           return Center(child: SizedBox.shrink());
@@ -549,14 +589,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           HapticFeedback.selectionClick();
                           msg_sent = false;
                           setState(() {});
-                          showSendingPopup(context, "Sending....");
                           final msg = type_msg.text;
                           type_msg.text = "";
 
                           await send_message(msg);
-                          await all_chats_list();
                           temp_msg = "";
-                          hideSendingPopup();
                         },
                         controller: type_msg,
                         cursorColor: Colors.teal,
@@ -625,7 +662,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           HapticFeedback.selectionClick();
                           msg_sent = false;
                           setState(() {});
-                          showSendingPopup(context, "Sending....");
                           final msg = type_msg.text;
                           type_msg.text = "";
 
@@ -635,9 +671,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           if (selectedImage != null) {
                             await uploadImageBase64(selectedImage!);
                           }
-                          await all_chats_list();
                           temp_msg = "";
-                          hideSendingPopup();
                           selectedImage = null;
                           setState(() {});
                         },
@@ -722,24 +756,28 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             PopupMenuItem(
               child: Row(
                 children: [
-                  SizedBox(width: 20,),
-                  Text(chat["messages"][no]["timestamp"],style: TextStyle(color: Colors.blueGrey,fontFamily: "times new roman"),),
+                  SizedBox(width: 30),
+                  Text(
+                    chat["messages"][no]["timestamp"],
+                    style: TextStyle(
+                      color: Colors.blueGrey,
+                      fontFamily: "times new roman",
+                    ),
+                  ),
                 ],
               ),
             ),
           ],
         ).then((value) async {
           if (value == "delete") {
-            showSendingPopup(context, "Deleting...");
             delete_msg(chat["messages"][no]["conversation_id"]);
+            print("deleted");
           }
           if (value == "save_img") {
-            showSendingPopup(context, "Saving...");
             await saveImageToGallery(
               chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
             );
-            print("sended");
-            hideSendingPopup();
+            print("img saved");
           }
         });
       },
@@ -883,19 +921,30 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            PopupMenuItem(
+              child: Row(
+                children: [
+                  SizedBox(width: 30),
+                  Text(
+                    chat["messages"][no]["timestamp"],
+                    style: TextStyle(
+                      color: Colors.blueGrey,
+                      fontFamily: "times new roman",
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ).then((value) async {
           if (value == "delete") {
-            showSendingPopup(context, "Deleting...");
             delete_msg(chat["messages"][no]["conversation_id"]);
           }
           if (value == "save_img") {
-            showSendingPopup(context, "Saving...");
             await saveImageToGallery(
               chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
             );
             print("saved");
-            hideSendingPopup();
           }
         });
       },
@@ -964,11 +1013,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   //// upload image to database //////
   Future<void> uploadImageBase64(File imageFile) async {
     final bytes = await imageFile.readAsBytes();
-    // final response = await http.post(
-    //   Uri.parse("${master_url}upload_image"),
-    //   headers: {"Content-Type": "application/json"},
-    //   body: jsonEncode({"file": base64Encode(bytes)}),
-    // );
     final url = await chatApi.uploadImageBase64(base64Encode(bytes));
     print("\n");
     print("🚀url 📷${url}");
@@ -1024,10 +1068,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            PopupMenuItem(
+              child: Row(
+                children: [
+                  SizedBox(width: 30),
+                  Text(
+                    chat["messages"][no]["timestamp"],
+                    style: TextStyle(
+                      color: Colors.blueGrey,
+                      fontFamily: "times new roman",
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ).then((value) {
           if (value == "delete") {
-            showSendingPopup(context, "Deleting...");
             delete_msg(chat["messages"][no]["conversation_id"]);
           }
           ;
@@ -1071,60 +1128,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ),
       ),
     );
-  }
-
-  ///////  sending popup /////
-  OverlayEntry? sendingPopup;
-  void showSendingPopup(BuildContext context, String text) {
-    if (sendingPopup != null) return;
-    sendingPopup = OverlayEntry(
-      builder: (context) {
-        double keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
-        return Positioned(
-          bottom: keyboardHeight + 80,
-          left: 130,
-          right: 130,
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(255, 34, 54, 96),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Text(
-                    text,
-                    style: TextStyle(
-                      fontFamily: "cursive",
-                      fontSize: 12,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-    Overlay.of(context).insert(sendingPopup!);
-  }
-
-  void hideSendingPopup() {
-    sendingPopup?.remove();
-    sendingPopup = null;
   }
 
   //////// sent message widget  ///////
@@ -1174,10 +1177,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ],
               ),
             ),
+            PopupMenuItem(
+              child: Row(
+                children: [
+                  SizedBox(width: 30),
+                  Text(
+                    chat["messages"][no]["timestamp"],
+                    style: TextStyle(
+                      color: Colors.blueGrey,
+                      fontFamily: "times new roman",
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ).then((value) {
           if (value == "delete") {
-            showSendingPopup(context, "Deleting...");
             delete_msg(chat["messages"][no]["conversation_id"]);
           }
           ;
@@ -1269,12 +1285,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   ////////   clear_chat ///////
   Future<void> clear_chat() async {
     final contacts = all_contacts.value;
-    showSendingPopup(context, "Clearing ...");
     final email = FirebaseAuth.instance.currentUser?.email;
     await chatApi.clearChat(email!, widget.ID);
-    await all_chats_list();
-    hideSendingPopup();
     user_contact();
+    await all_chats_list();
     setState(() {});
     print("🚀🚀🚀 cleared chat line 1230 ");
   }
@@ -1283,9 +1297,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Future<void> delete_msg(int convo_id) async {
     final email = FirebaseAuth.instance.currentUser!.email!;
     await chatApi.deleteSingleMessage(email, widget.ID, convo_id);
-    await all_chats_list();
-    hideSendingPopup();
     user_contact();
+    await all_chats_list();
+    HapticFeedback.heavyImpact();
     setState(() {});
     print("🚀🚀🚀 deleted msg line 1243 ");
   }

@@ -6,6 +6,7 @@ import 'package:Aera/essentials/data.dart';
 import 'package:Aera/essentials/functions.dart';
 import 'package:Aera/login_page.dart';
 import 'package:Aera/main.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 // import 'package:Aera/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,7 +18,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:lottie/lottie.dart';
-
 
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
 bool isdark = true;
@@ -48,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> mark_msg_seen(String other_user) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.markLastMsgSeen(email!, other_user);
+    final a = await chatApi.markLastMsgSeen(email!, other_user);
     await user_contacts();
     setState(() {});
   }
@@ -106,8 +106,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ).then((value) async {
                   if (value == "delete") {
-                    final email = await FirebaseAuth.instance.currentUser?.email;
-                   await chatApi.removeContactAndClearChat(email!,contacts["contacts"][num]["id"]);
+                    final email =
+                        await FirebaseAuth.instance.currentUser?.email;
+                    await chatApi.removeContactAndClearChat(
+                      email!,
+                      contacts["contacts"][num]["id"],
+                    );
                     await user_contacts();
                     print("removed");
                     setState(() {});
@@ -294,10 +298,11 @@ class _MyHomePageState extends State<MyHomePage> {
                                 width: 210,
                                 child: Text(
                                   overflow: TextOverflow.ellipsis,
-                                  contacts["contacts"][num]["last_message"]
+
+                                  all_contacts.value["contacts"][num]["last_message"]
                                           .contains(SECRET_MARKER)
                                       ? " ◯ Image"
-                                      : contacts["contacts"][num]["last_message"],
+                                      : all_contacts.value["contacts"][num]["last_message"],
                                   style: TextStyle(
                                     fontFamily: "times new roman",
                                     fontSize: 13.5,
@@ -316,7 +321,7 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     Text(
-                      contacts["contacts"][num]["last_message_time"],
+                      all_contacts.value["contacts"][num]["last_message_time"],
                       style: TextStyle(
                         fontSize: 8,
                         fontFamily: "times new roman",
@@ -343,17 +348,19 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    // final response = await http.get(
-    //   Uri.parse(master_url + "user_contacts/${email}"),
-    // );
-    // all_contacts.value = jsonDecode(response.body);
     final a = await chatApi.getUserContacts(email!);
     all_contacts.value = a;
-    print("🚀 🚀 : ${a}");
     final box = Hive.box('cache');
     box.put('all_contacts', all_contacts.value);
 
     setState(() {});
+  }
+
+  static final AudioPlayer _player = AudioPlayer();
+  static Future<void> playClick() async {
+    await _player.stop(); // avoid overlap
+    await _player.play(AssetSource('sounds/happy-pop-3.mp3'), volume: 1.0);
+    print("played");
   }
 
   @override
@@ -405,34 +412,38 @@ class _MyHomePageState extends State<MyHomePage> {
         centerTitle: true,
         elevation: 2,
         actions: [
-          InkWell(
-            borderRadius: BorderRadius.circular(17),
-            onTap: () async {
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) {
-              //       return ChatbotPage();
-              //     },
-              //   ),
-              // );
-             
-             
-              final email = await FirebaseAuth.instance.currentUser?.email;
-              final a = await chatApi.getLastSeen("onkar.gaikwad@iitgn.ac.in");
-              print("\n");
-              print("📷📷📷 done  ${a}");
-              print("\n");
-              print("🚀 ${a}");
-            },
-            child: CircleAvatar(
-              maxRadius: 15,
-              backgroundColor: isdark
-                  ? const Color.fromARGB(78, 25, 50, 98)
-                  : kTextHint,
-              backgroundImage: AssetImage("assets/images/ai.png"),
-            ),
-          ),
+          // InkWell(
+          //   borderRadius: BorderRadius.circular(17),
+          //   onTap: () async {
+          //     // Navigator.push(
+          //     //   context,
+          //     //   MaterialPageRoute(
+          //     //     builder: (context) {
+          //     //       return ChatbotPage();
+          //     //     },
+          //     //   ),
+          //     // );
+
+          //     // final email = await FirebaseAuth.instance.currentUser?.email;
+          //     // chatApi.addMessageFast("onkar.gaikwad@iitgn.ac.in",email!,"hi");
+          //     // print("\n");
+          //     // print("📷📷📷 done  ${a}");
+          //     print(all_contacts.value);
+          //     // playClick();
+          //     print("done");
+          //     // print("\n");
+          //     // final chat = all_msg_list.value;
+          //     // print("🚀 ${chat}");
+          //     // print("\n");
+          //   },
+          //   child: CircleAvatar(
+          //     maxRadius: 15,
+          //     backgroundColor: isdark
+          //         ? const Color.fromARGB(78, 25, 50, 98)
+          //         : kTextHint,
+          //     backgroundImage: AssetImage("assets/images/ai.png"),
+          //   ),
+          // ),
           SizedBox(width: 15),
           GestureDetector(
             onTap: () {

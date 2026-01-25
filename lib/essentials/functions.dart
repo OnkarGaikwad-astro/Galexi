@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:Aera/essentials/data.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -131,6 +134,7 @@ class SupabaseChatApi {
       'user_id': userId,
       'contact_id': contactId,
     });
+    addMessageFast(userId, contactId, "");
     return {'status': 'contact_added'};
   }
 
@@ -182,7 +186,7 @@ class SupabaseChatApi {
     final ids = contactMap.keys.join(',');
     final userRows = await _db
         .from('users')
-        .select('user_id,name,profile_pic,bio')
+        .select('user_id,name,profile_pic,bio,fcm_token')
         .inFilter('user_id', contactMap.keys.toList());
     final List<Map<String, dynamic>> contacts = [];
     for (final u in userRows) {
@@ -193,6 +197,7 @@ class SupabaseChatApi {
         'name': u['name'] ?? '',
         'profile_pic': u['profile_pic'] ?? '',
         'bio': u['bio'] ?? '',
+        'fcm_token': u['fcm_token'],
         'last_message': info['last_message'],
         'last_message_time': info['last_message_time'],
         'last_message_sender_id': info['last_message_sender_id'],
@@ -231,69 +236,54 @@ class SupabaseChatApi {
   }
 
   /////  add message   /////
+String buildChatId(String a, String b) {
+  final pair = [a, b]..sort();
+  return pair.join("__");
+}
 
-  Future<void> addMessage(String sender, String receiver, String msg) async {
-    await addContact(sender, receiver);
-    await addContact(receiver, sender);
-    final chatId =
-        await _findChat(sender, receiver) ??
-        DateFormat('yyyyMMddHHmmss').format(DateTime.now());
+Future<void> addMessageFast(
+  String sender,
+  String receiver,
+  String msg,
+) async {
+  final chat = all_msg_list.value["chats"].firstWhere(
+    (c) => c["contact_id"] == receiver,
+    orElse: () => {"message_count": 0},
+  );
 
-    final prev = await _db
-        .from('messages')
-        .select('conversation_id')
-        .eq('id', chatId)
-        .gt('conversation_id', 0);
+  final chatId = buildChatId(sender, receiver);
+  final convoId = chat["message_count"] + 1;
+  await _db.from('messages').insert({
+    'id': chatId,
+    'conversation_id': convoId,
+    'sender_id': sender,
+    'receiver_id': receiver,
+    'msg': msg,
+    'timestamp': _istNow(),
+  });
+  final contact = all_contacts.value["contacts"].firstWhere(
+    (c) => c["id"] == receiver,
+  );
 
-    final convoId = prev.length + 1;
-    if (prev.isEmpty) {
-      await _db.from('messages').insert({
-        'id': chatId,
-        'conversation_id': 0,
-        'sender_id': sender,
-        'receiver_id': receiver,
-        'msg': '',
-        'timestamp': '',
-      });
-    }
-    await _db.from('messages').insert({
-      'id': chatId,
-      'conversation_id': convoId,
-      'sender_id': sender,
-      'receiver_id': receiver,
-      'msg': msg,
-      'timestamp': _istNow(),
+  print("fetching fcm 😋 ");
+  final fcmToken = await contact["fcm_token"];
+  print("😋😋😋 fcm token :${fcmToken}");
+  if (fcmToken != null && fcmToken.isNotEmpty) {
+    Future.microtask(() {
+      http.post(
+        Uri.parse(notificationServerUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'token': fcmToken,
+          'title': sender,
+          'body': msg.contains('\uE000') ? '⦿ Image' : msg,
+          'send_id': sender,
+        }),
+      );
     });
-
-    final tokenRes = await _db
-        .from('users')
-        .select('fcm_token')
-        .eq('user_id', receiver)
-        .maybeSingle();
-
-    if (tokenRes == null || tokenRes['fcm_token'] == null) {
-      return;
-    }
-    final receiverToken = tokenRes['fcm_token'];
-    final senderRes = await _db
-        .from('users')
-        .select('name')
-        .eq('user_id', sender)
-        .maybeSingle();
-    final senderName = senderRes?['name'] ?? sender;
-    await http.post(
-      Uri.parse(
-        "https://us-central1-galexi-eebbe.cloudfunctions.net/sendFcmNotification",
-      ),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'token': receiverToken,
-        'title': senderName,
-        'body': msg.contains('\uE000') ? '⦿ Image' : msg,
-        'send_id': sender,
-      }),
-    );
   }
+}
+
 
   ////  chat between user and contact  /////
 
@@ -363,34 +353,22 @@ class SupabaseChatApi {
   }
 
   ////  delete message ////
+Future<void> deleteSingleMessage(
+  String u1,
+  String u2,
+  int convoId,
+) async {
+  final chatId = buildChatId(u1, u2); // same chat id logic you use
 
-  Future<void> deleteSingleMessage(String u1, String u2, int convoId) async {
-    final msg = await _db
-        .from('messages')
-        .select('id,pk')
-        .or(
-          'and(sender_id.eq.$u1,receiver_id.eq.$u2,conversation_id.eq.$convoId),and(sender_id.eq.$u2,receiver_id.eq.$u1,conversation_id.eq.$convoId)',
-        )
-        .limit(1)
-        .maybeSingle();
-    if (msg == null) return;
-    final chatId = msg['id'];
-    await _db.from('messages').delete().eq('pk', msg['pk']);
-    final rest = await _db
-        .from('messages')
-        .select('pk')
-        .eq('id', chatId)
-        .gt('conversation_id', 0)
-        .order('conversation_id');
-    int i = 1;
-    for (final m in rest) {
-      await _db
-          .from('messages')
-          .update({'conversation_id': i})
-          .eq('pk', m['pk']);
-      i++;
-    }
-  }
+  await _db.rpc(
+    'delete_and_renumber',
+    params: {
+      'chat_id': chatId,
+      'convo': convoId,
+    },
+  );
+}
+
 
   ////   clear chat  /////
 

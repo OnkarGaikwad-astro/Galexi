@@ -62,11 +62,11 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 
 void handleNotificationNavigation(RemoteMessage message) async{
-  print("FCM DATA: ${message.data}");
+  // print("FCM DATA: ${message.data}");
   final type = message.data['type'];
   await appKey.currentState?.all_chats_list();
   if (type == 'chat') {
-    print("FCM DATA: ${message.data}");
+    // print("FCM DATA: ${message.data}");
     navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (_) => ChatPage(ID:message.data["send_id"])
@@ -144,7 +144,7 @@ class _MyAppState extends State<MyApp> {
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
     final box = Hive.box('cache');
     box.put('all_msg_list', all_msg_list.value);
-    print("🚀🚀🚀 : $all_msg_list.value");
+    // print("🚀🚀🚀 : $all_msg_list.value");
     setState(() {});
   }
 
@@ -170,10 +170,6 @@ class _MyAppState extends State<MyApp> {
   ////////  refresh contacts //////
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    // final response = await http.get(
-    //   Uri.parse(master_url + "user_contacts/${email}"),
-    // );
-    // all_contacts.value = jsonDecode(response.body);
 
     all_contacts.value = await chatApi.getUserContacts(email!);
     final box = Hive.box('cache');
