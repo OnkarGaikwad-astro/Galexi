@@ -275,7 +275,7 @@ Future<void> addMessageFast(
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': fcmToken,
-          'title': sender,
+          'title':FirebaseAuth.instance.currentUser?.displayName, 
           'body': msg.contains('\uE000') ? '⦿ Image' : msg,
           'send_id': sender,
         }),

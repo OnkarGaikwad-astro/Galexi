@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -39,6 +40,7 @@ bool msg_sent = true;
 String temp_msg = "";
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
+  late RealtimeChannel typingChannel;
   @override
   ///// fetch chat /////
   Map<String, dynamic> chat = <String, dynamic>{
@@ -46,7 +48,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     "messages": <dynamic>[],
   };
   File? selectedImage;
-  late RealtimeChannel typingChannel;
   bool otherUserTyping = false;
 
   static final AudioPlayer _player = AudioPlayer();
@@ -150,6 +151,37 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   void initState() {
     noti = true;
     super.initState();
+
+    final myUserId = FirebaseAuth.instance.currentUser!.email!;
+    final chatId = buildChatId(myUserId, widget.ID);
+
+    typingChannel = Supabase.instance.client
+        .channel('typing:$chatId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'typing_status',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'chat_id',
+            value: chatId,
+          ),
+          callback: (payload) {
+            print('🔥 TYPING EVENT');
+
+            final data = payload.newRecord;
+            if (data == null) return;
+
+            // ignore own typing
+            if (data['user_id'] == myUserId) return;
+
+            setState(() {
+              otherUserTyping = data['is_typing'] == true;
+            });
+          },
+        )
+        .subscribe();
+
     Isdark = Hive.box("isdark").get("isDark");
     fetch_chat();
     last_seen();
@@ -162,6 +194,23 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       setState(() {});
       print("🔔 message received");
     });
+  }
+
+  @override
+  void dispose() {
+    _typingTimer?.cancel();
+    typingChannel.unsubscribe(); // 🔥 REQUIRED
+
+    final me = FirebaseAuth.instance.currentUser!.email!;
+    final chatId = buildChatId(me, widget.ID);
+
+    Supabase.instance.client
+        .from('typing_status')
+        .update({'is_typing': false})
+        .eq('chat_id', chatId)
+        .eq('user_id', me);
+
+    super.dispose();
   }
 
   // ///  refresh msgs when app resumes from home /////
@@ -438,14 +487,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 softWrap: true,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              Text(
-                                otherUserTyping ? "typing..." : "",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontFamily: "cursive",
-                                  color: Isdark ? Colors.white : Colors.black,
-                                ),
-                              ),
                             ],
                           ),
                         ),
@@ -521,6 +562,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   !msg_sent
                       ? (temp_msg != "" ? temp_sended_msg() : SizedBox.shrink())
                       : SizedBox.shrink(),
+                  typing_indi(),
 
                   if (selectedImage != null)
                     Align(
@@ -564,121 +606,131 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               ),
               Positioned(
                 bottom: 15,
-                left: 10,
-                right: 10,
+                left: 0,
+                right: 0,
                 height: 50,
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(25),
-                      ),
-                      width: 300,
-                      height: 50,
-                      child: TextField(
-                        onChanged: (value) {
-                          msg_sent = false;
-                          temp_msg = type_msg.text;
-                          if (type_msg.text.trim().isEmpty) {
-                            msg_sent = true;
+                child: Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        width: 300,
+                        height: 50,
+                        child: TextField(
+                          onChanged: (value) {
+                            onTyping(widget.ID);
+                            msg_sent = false;
+                            temp_msg = type_msg.text;
+                            if (type_msg.text.trim().isEmpty) {
+                              msg_sent = true;
+                              setState(() {});
+                            }
                             setState(() {});
-                          }
-                          setState(() {});
-                        },
-                        onSubmitted: (value) async {
-                          HapticFeedback.selectionClick();
-                          msg_sent = false;
-                          setState(() {});
-                          final msg = type_msg.text;
-                          type_msg.text = "";
+                          },
+                          onSubmitted: (value) async {
+                            HapticFeedback.selectionClick();
+                            msg_sent = false;
+                            setState(() {});
+                            final msg = type_msg.text;
+                            type_msg.text = "";
 
-                          await send_message(msg);
-                          temp_msg = "";
-                        },
-                        controller: type_msg,
-                        cursorColor: Colors.teal,
-                        decoration: InputDecoration(
-                          prefixIcon: IconButton(
-                            icon: Icon(Icons.photo_size_select_actual_rounded),
-                            color: const Color.fromARGB(255, 150, 215, 245),
-                            onPressed: () async {
-                              HapticFeedback.selectionClick();
-                              final File? image = await pickImageFromGallery();
-                              if (image != null) {
-                                setState(() {
-                                  selectedImage = image;
-                                });
-                              }
-                            },
-                          ),
-                          hint: Padding(
-                            padding: const EdgeInsets.only(top: 20, bottom: 7),
-                            child: Text(
-                              "Send across the galaxy . . .",
-                              style: TextStyle(
-                                fontFamily: "times new roman",
-                                letterSpacing: 1.5,
-                                fontSize: 13,
+                            await send_message(msg);
+                            temp_msg = "";
+                          },
+                          controller: type_msg,
+                          cursorColor: Colors.teal,
+                          decoration: InputDecoration(
+                            prefixIcon: IconButton(
+                              icon: Icon(
+                                Icons.photo_size_select_actual_rounded,
+                              ),
+                              color: const Color.fromARGB(255, 150, 215, 245),
+                              onPressed: () async {
+                                HapticFeedback.selectionClick();
+                                final File? image =
+                                    await pickImageFromGallery();
+                                if (image != null) {
+                                  setState(() {
+                                    selectedImage = image;
+                                  });
+                                }
+                              },
+                            ),
+                            hint: Padding(
+                              padding: const EdgeInsets.only(
+                                top: 20,
+                                bottom: 7,
+                              ),
+                              child: Text(
+                                "Send across the galaxy . . .",
+                                style: TextStyle(
+                                  fontFamily: "times new roman",
+                                  letterSpacing: 1.5,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
-                          ),
-                          filled: true,
-                          fillColor: const Color.fromARGB(46, 158, 158, 158),
-                          disabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: (Isdark
-                                  ? const Color.fromARGB(255, 255, 255, 255)
-                                  : Colors.black),
+                            filled: true,
+                            fillColor: const Color.fromARGB(46, 158, 158, 158),
+                            disabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: (Isdark
+                                    ? const Color.fromARGB(255, 255, 255, 255)
+                                    : Colors.black),
+                              ),
                             ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: (Isdark ? Colors.white : Colors.black),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: (Isdark ? Colors.white : Colors.black),
+                              ),
                             ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: (Isdark
-                                  ? const Color.fromARGB(255, 121, 120, 120)
-                                  : Colors.black),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide(
+                                color: (Isdark
+                                    ? const Color.fromARGB(255, 121, 120, 120)
+                                    : Colors.black),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    SizedBox(width: 7),
-                    Container(
-                      height: 50,
-                      width: 50,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(25),
-                        color: Color.fromARGB(255, 59, 148, 181),
-                      ),
-                      child: IconButton(
-                        onPressed: () async {
-                          HapticFeedback.selectionClick();
-                          msg_sent = false;
-                          setState(() {});
-                          final msg = type_msg.text;
-                          type_msg.text = "";
+                      SizedBox(width: 7),
+                      Container(
+                        height: 50,
+                        width: 50,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(25),
+                          color: Color.fromARGB(255, 59, 148, 181),
+                        ),
+                        child: IconButton(
+                          onPressed: () async {
+                            HapticFeedback.selectionClick();
+                            msg_sent = false;
+                            setState(() {});
+                            final msg = type_msg.text;
+                            type_msg.text = "";
 
-                          if (msg != null) {
-                            await send_message(msg);
-                          }
-                          if (selectedImage != null) {
-                            await uploadImageBase64(selectedImage!);
-                          }
-                          temp_msg = "";
-                          selectedImage = null;
-                          setState(() {});
-                        },
-                        icon: Icon(Icons.send_rounded, size: 25),
+                            if (msg != "") {
+                              await send_message(msg);
+                            }
+                            if (selectedImage != null) {
+                              await uploadImageBase64(selectedImage!);
+                            }
+                            temp_msg = "";
+                            selectedImage = null;
+                            setState(() {});
+                          },
+                          icon: Icon(Icons.send_rounded, size: 25),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -1274,6 +1326,59 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
               ),
             ),
+          ),
+        ),
+      );
+    } else {
+      return SizedBox.shrink();
+    }
+  }
+
+  /////  typing function ////
+  Timer? _typingTimer;
+  void onTyping(String receiverId)async {
+    print("changed");
+    final me = FirebaseAuth.instance.currentUser!.email!;
+    final chatId = buildChatId(me, receiverId);
+print(1);
+    await Supabase.instance.client.from('typing_status').upsert({
+      'chat_id': chatId,
+      'user_id': me,
+      'is_typing': true,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+print(2);
+    _typingTimer?.cancel();
+    _typingTimer = Timer(const Duration(seconds: 1), () async{
+     await Supabase.instance.client
+          .from('typing_status')
+          .update({'is_typing': false})
+          .eq('chat_id', chatId)
+          .eq('user_id', me);
+    });
+    print(1);
+  }
+
+  ///// typing indicator  /////
+  Widget typing_indi() {
+    if (otherUserTyping) {
+      return Padding(
+        padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: Container(
+            constraints: BoxConstraints(maxWidth: 100, maxHeight: 60),
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(15),
+                topLeft: Radius.zero,
+                bottomRight: Radius.circular(15),
+                topRight: Radius.circular(15),
+              ),
+              // color:Color.fromARGB(50, 255, 255, 255),
+            ),
+            child: Lottie.asset("assets/lotties/Chat typing indicator.json"),
           ),
         ),
       );
