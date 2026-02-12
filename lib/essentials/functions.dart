@@ -87,32 +87,51 @@ class SupabaseChatApi {
     return r?['last_seen'];
   }
 
+  Future<void> touchLastSeen() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await _db
+        .from('users')
+        .update({'last_seen': DateTime.now().toUtc().toIso8601String()})
+        .eq('user_id', user.email!);
+  }
+
   /////  mark msg seen  ////
 
   Future<String> markLastMsgSeen(String userId, String otherUser) async {
-    final rows = await _db
-        .from('messages')
-        .select('id,sender_id,receiver_id')
-        .or(
-          'and(sender_id.eq.$otherUser,receiver_id.eq.$userId),'
-          'and(sender_id.eq.$userId,receiver_id.eq.$otherUser)',
-        )
-        .order('timestamp', ascending: false)
-        .limit(1);
+    final res = await _db.rpc(
+      'mark_last_msg_seen',
+      params: {'p_user': userId, 'p_other': otherUser},
+    );
 
-    if (rows.isEmpty) {
-      return 'no_messages';
+    if (res == null || res == false) {
+      return 'no_messages_or_already_seen';
     }
-    final lastMsg = rows.first;
-    final msgId = lastMsg['id'];
-    final sender = lastMsg['sender_id'];
-    final receiver = lastMsg['receiver_id'];
-    if (userId != receiver) {
-      return 'no_update_user_is_sender';
-    }
-    await _db.from('messages').update({'msg_seen': 'seen'}).eq('id', msgId);
 
     return 'last_message_marked_seen';
+  }
+
+  /////  user status /////
+
+  Future<void> setOnline() async {
+    final user = FirebaseAuth.instance.currentUser!.email!;
+    await Supabase.instance.client.from('user_presence').upsert({
+      'user_id': user,
+      'is_online': true,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  Future<void> setOffline() async {
+    final user = FirebaseAuth.instance.currentUser!.email!;
+    await Supabase.instance.client
+        .from('user_presence')
+        .update({
+          'is_online': false,
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('user_id', user);
   }
 
   /////  add contact /////
@@ -236,54 +255,46 @@ class SupabaseChatApi {
   }
 
   /////  add message   /////
-String buildChatId(String a, String b) {
-  final pair = [a, b]..sort();
-  return pair.join("__");
-}
-
-Future<void> addMessageFast(
-  String sender,
-  String receiver,
-  String msg,
-) async {
-  final chat = all_msg_list.value["chats"].firstWhere(
-    (c) => c["contact_id"] == receiver,
-    orElse: () => {"message_count": 0},
-  );
-
-  final chatId = buildChatId(sender, receiver);
-  final convoId = chat["message_count"] + 1;
-  await _db.from('messages').insert({
-    'id': chatId,
-    'conversation_id': convoId,
-    'sender_id': sender,
-    'receiver_id': receiver,
-    'msg': msg,
-    'timestamp': _istNow(),
-  });
-  final contact = all_contacts.value["contacts"].firstWhere(
-    (c) => c["id"] == receiver,
-  );
-
-  print("fetching fcm 😋 ");
-  final fcmToken = await contact["fcm_token"];
-  print("😋😋😋 fcm token :${fcmToken}");
-  if (fcmToken != null && fcmToken.isNotEmpty) {
-    Future.microtask(() {
-      http.post(
-        Uri.parse(notificationServerUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'token': fcmToken,
-          'title':FirebaseAuth.instance.currentUser?.displayName, 
-          'body': msg.contains('\uE000') ? '⦿ Image' : msg,
-          'send_id': sender,
-        }),
-      );
-    });
+  String buildChatId(String a, String b) {
+    final pair = [a, b]..sort();
+    return pair.join("__");
   }
-}
 
+  Future<void> addMessageFast(
+    String sender,
+    String receiver,
+    String msg,
+  ) async {
+    await addContact(sender, receiver);
+    final chatId = buildChatId(sender, receiver);
+    await _db.from('messages').insert({
+      'id': chatId,
+      'sender_id': sender,
+      'receiver_id': receiver,
+      'msg': msg,
+    });
+    final contact = all_contacts.value["contacts"].firstWhere(
+      (c) => c["id"] == receiver,
+    );
+
+    print("fetching fcm 😋 ");
+    final fcmToken = await contact["fcm_token"];
+    print("😋😋😋 fcm token :${fcmToken}");
+    if (fcmToken != null && fcmToken.isNotEmpty) {
+      Future.microtask(() {
+        http.post(
+          Uri.parse(notificationServerUrl),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'token': fcmToken,
+            'title': FirebaseAuth.instance.currentUser?.displayName,
+            'body': msg.contains('\uE000') ? '⦿ Image' : msg,
+            'send_id': sender,
+          }),
+        );
+      });
+    }
+  }
 
   ////  chat between user and contact  /////
 
@@ -353,22 +364,16 @@ Future<void> addMessageFast(
   }
 
   ////  delete message ////
-Future<void> deleteSingleMessage(
-  String u1,
-  String u2,
-  int convoId,
-) async {
-  final chatId = buildChatId(u1, u2); // same chat id logic you use
+  Future<void> deleteSingleMessage(String u1, String u2, int convoId) async {
+    final chatId = buildChatId(u1, u2); // same chat id logic you use
 
-  await _db.rpc(
-    'delete_and_renumber',
-    params: {
-      'chat_id': chatId,
-      'convo': convoId,
-    },
-  );
-}
-
+    await _db
+        .from('messages')
+        .delete()
+        .eq('conversation_id', convoId)
+        .eq('id', chatId);
+    print("object");
+  }
 
   ////   clear chat  /////
 

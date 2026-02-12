@@ -76,7 +76,6 @@ void handleNotificationNavigation(RemoteMessage message) async{
 }
 
 
-
 final GlobalKey<NavigatorState> navigatorKey =
     GlobalKey<NavigatorState>();
 
@@ -122,9 +121,12 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  
+
   @override
   void initState() {
     super.initState();
+    chatApi.setOnline();
     isdark = Hive.box("isdark").get("isDark") ?? true;
     retrive_data();
     update_last_seen();
@@ -170,11 +172,9 @@ class _MyAppState extends State<MyApp> {
   ////////  refresh contacts //////
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-
     all_contacts.value = await chatApi.getUserContacts(email!);
     final box = Hive.box('cache');
     box.put('all_contacts', all_contacts.value);
-
     setState(() {});
   }
 

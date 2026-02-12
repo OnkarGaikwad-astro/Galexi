@@ -24,6 +24,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 bool Isdark = true;
 bool noti = false;
+late RealtimeChannel presenceChannel;
+bool isOnline = false;
 
 class ChatPage extends StatefulWidget {
   final dynamic ID;
@@ -41,6 +43,8 @@ String temp_msg = "";
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   late RealtimeChannel typingChannel;
+  late RealtimeChannel messageChannel;
+
   @override
   ///// fetch chat /////
   Map<String, dynamic> chat = <String, dynamic>{
@@ -94,24 +98,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     if (msg != "") playClick();
     await all_chats_list();
     user_contact();
-    // print("\n\n");
     print("🚀🚀🚀🚀 msg sent");
   }
-
-  //   void addMessageToLocalChat(String msg) {
-  //   chat["messages"].add({
-  //     "msg": msg,
-  //     "sender_id": FirebaseAuth.instance.currentUser!.email,
-  //     "receiver_id": widget.ID,
-  //     "timestamp": DateTime.now().toString(),
-  //     "conversation_id": chat["message_count"] + 1,
-  //     "user_sent": "yes",
-  //   });
-
-  //   chat["message_count"]++;
-
-  //   setState(() {});
-  // }
 
   ///// sender_last_seen  /////
 
@@ -127,6 +115,32 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     // print(response);
   }
 
+  void listenPresence(String otherUser) {
+    presenceChannel = Supabase.instance.client
+        .channel('presence:$otherUser')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'user_presence',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'user_id',
+            value: otherUser,
+          ),
+          callback: (payload) {
+            final data = payload.newRecord;
+            if (data == null) return;
+
+            setState(() {
+              isOnline = data['is_online'] == true;
+            });
+
+            print('🟢 PRESENCE UPDATE → $isOnline');
+          },
+        )
+        .subscribe();
+  }
+
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
     msg_sent = true;
@@ -134,7 +148,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
     final box = Hive.box('cache');
     await box.put('all_msg_list', all_msg_list.value);
-    print("🚀🚀🚀 : all chat list fetched success line 126 chatpage");
     setState(() {});
     await fetch_chat();
     msg_sent = true;
@@ -146,15 +159,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     return pair.join("__");
   }
 
-  ///
+  /// init state  ////
   @override
   void initState() {
     noti = true;
     super.initState();
-
+    WidgetsBinding.instance.addObserver(this);
+    Future.microtask(() async {
+      listenPresence(widget.ID);
+    });
+    mark_msg_seen(widget.ID);
     final myUserId = FirebaseAuth.instance.currentUser!.email!;
     final chatId = buildChatId(myUserId, widget.ID);
 
+    //////  typing indicator  //////
     typingChannel = Supabase.instance.client
         .channel('typing:$chatId')
         .onPostgresChanges(
@@ -167,17 +185,44 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             value: chatId,
           ),
           callback: (payload) {
-            print('🔥 TYPING EVENT');
-
+            print("chatid:$chatId");
+            print('📖 TYPING..');
             final data = payload.newRecord;
             if (data == null) return;
-
-            // ignore own typing
             if (data['user_id'] == myUserId) return;
-
             setState(() {
               otherUserTyping = data['is_typing'] == true;
             });
+          },
+        )
+        .subscribe();
+
+    //////   messages realtime  ////
+    messageChannel = Supabase.instance.client
+        .channel('messages:$chatId')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'messages',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: chatId,
+          ),
+          callback: (payload) {
+            print("🚀🚀🚀🚀🚀🚀🚀 NEW MESSAGE REALTIME");
+            final newMsg = payload.newRecord;
+            print("new msg $newMsg");
+
+            setState(() {
+              all_chats_list();
+            });
+            
+            if (newMsg == null) return;
+            // if (payload.eventType == PostgresChangeEvent.delete) return;
+            if (newMsg["sender_id"] != myUserId) {
+              receivedsound();
+            }
           },
         )
         .subscribe();
@@ -188,7 +233,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     all_chats_list();
     FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
-      if (noti) receivedsound();
       last_seen();
       await all_chats_list();
       setState(() {});
@@ -198,18 +242,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    messageChannel.unsubscribe();
     _typingTimer?.cancel();
-    typingChannel.unsubscribe(); // 🔥 REQUIRED
-
+    typingChannel.unsubscribe();
+    presenceChannel.unsubscribe();
     final me = FirebaseAuth.instance.currentUser!.email!;
     final chatId = buildChatId(me, widget.ID);
-
     Supabase.instance.client
         .from('typing_status')
         .update({'is_typing': false})
         .eq('chat_id', chatId)
         .eq('user_id', me);
-
     super.dispose();
   }
 
@@ -218,11 +262,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      all_chats_list();
+      chatApi.setOnline();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.inactive) {
+      chatApi.setOffline();
     }
   }
 
-  ///
+  /////////
 
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -487,6 +535,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 softWrap: true,
                                 overflow: TextOverflow.ellipsis,
                               ),
+                              isOnline
+                                  ? Text(
+                                      'Online',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        color: Colors.green,
+                                        fontStyle: FontStyle.italic,
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
                             ],
                           ),
                         ),
@@ -738,6 +796,24 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  /////  mark msg seen ////
+  Future<void> mark_msg_seen(String other_user) async {
+    print("\nmarking \n");
+    final email = await FirebaseAuth.instance.currentUser?.email;
+    final a = await chatApi.markLastMsgSeen(email!, other_user);
+    print("🚀🚀🚀:${a}");
+    await user_contacts();
+  }
+
+  Future<void> user_contacts() async {
+    final email = await FirebaseAuth.instance.currentUser?.email;
+    final a = await chatApi.getUserContacts(email!);
+    all_contacts.value = a;
+    final box = Hive.box('cache');
+    box.put('all_contacts', all_contacts.value);
+    setState(() {});
   }
 
   Widget sent_image_base(int no) {
@@ -1336,21 +1412,21 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   /////  typing function ////
   Timer? _typingTimer;
-  void onTyping(String receiverId)async {
+  void onTyping(String receiverId) async {
     print("changed");
     final me = FirebaseAuth.instance.currentUser!.email!;
     final chatId = buildChatId(me, receiverId);
-print(1);
+    print(1);
     await Supabase.instance.client.from('typing_status').upsert({
       'chat_id': chatId,
       'user_id': me,
       'is_typing': true,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });
-print(2);
+    print(2);
     _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 1), () async{
-     await Supabase.instance.client
+    _typingTimer = Timer(const Duration(milliseconds: 500), () async {
+      await Supabase.instance.client
           .from('typing_status')
           .update({'is_typing': false})
           .eq('chat_id', chatId)
@@ -1405,8 +1481,7 @@ print(2);
     user_contact();
     await all_chats_list();
     HapticFeedback.heavyImpact();
-    setState(() {});
-    print("🚀🚀🚀 deleted msg line 1243 ");
+    print("deleted ");
   }
 
   /////  refresh contacts   //////

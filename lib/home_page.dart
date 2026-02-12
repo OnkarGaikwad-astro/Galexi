@@ -49,6 +49,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void> mark_msg_seen(String other_user) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
     final a = await chatApi.markLastMsgSeen(email!, other_user);
+    print("🚀🚀🚀 ${a}");
     await user_contacts();
     setState(() {});
   }
@@ -121,7 +122,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
               onTap: () async {
                 HapticFeedback.selectionClick();
-                mark_msg_seen(contacts["contacts"][num]["id"]);
+                // mark_msg_seen(contacts["contacts"][num]["id"]);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -320,16 +321,16 @@ class _MyHomePageState extends State<MyHomePage> {
                         ],
                       ),
                     ),
-                    Text(
-                      all_contacts.value["contacts"][num]["last_message_time"],
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontFamily: "times new roman",
-                        color: isdark
-                            ? Colors.grey
-                            : const Color.fromARGB(255, 72, 71, 71),
-                      ),
-                    ),
+                    // Text(
+                    //   all_contacts.value["contacts"][num]["last_message_time"],
+                    //   style: TextStyle(
+                    //     fontSize: 2,
+                    //     fontFamily: "times new roman",
+                    //     color: isdark
+                    //         ? Colors.grey
+                    //         : const Color.fromARGB(255, 72, 71, 71),
+                    //   ),
+                    // ),
                     SizedBox(width: 7),
                     contacts["contacts"][num]["msg_seen"] != "seen"
                         ? Text("🚀", style: TextStyle(fontSize: 14))
@@ -352,7 +353,6 @@ class _MyHomePageState extends State<MyHomePage> {
     all_contacts.value = a;
     final box = Hive.box('cache');
     box.put('all_contacts', all_contacts.value);
-
     setState(() {});
   }
 
@@ -412,38 +412,34 @@ class _MyHomePageState extends State<MyHomePage> {
         centerTitle: true,
         elevation: 2,
         actions: [
-          // InkWell(
-          //   borderRadius: BorderRadius.circular(17),
-          //   onTap: () async {
-          //     // Navigator.push(
-          //     //   context,
-          //     //   MaterialPageRoute(
-          //     //     builder: (context) {
-          //     //       return ChatbotPage();
-          //     //     },
-          //     //   ),
-          //     // );
+    //       InkWell(
+    //         borderRadius: BorderRadius.circular(17),
+    //         onTap: () async {
+    //           // Navigator.push(
+    //           //   context,
+    //           //   MaterialPageRoute(
+    //           //     builder: (context) {
+    //           //       return ChatbotPage();
+    //           //     },
+    //           //   ),
+    //           // );
+    //           final chat = all_msg_list.value["chats"].firstWhere(
+    //   (c) => c["contact_id"] =="onkar.gaikwad@iitgn.ac.in" ,
+    //   orElse: () => {"message_count": 0},
+    // );
+    // print(chat);
+    // // print(all_msg_list.value);
+  
 
-          //     // final email = await FirebaseAuth.instance.currentUser?.email;
-          //     // chatApi.addMessageFast("onkar.gaikwad@iitgn.ac.in",email!,"hi");
-          //     // print("\n");
-          //     // print("📷📷📷 done  ${a}");
-          //     print(all_contacts.value);
-          //     // playClick();
-          //     print("done");
-          //     // print("\n");
-          //     // final chat = all_msg_list.value;
-          //     // print("🚀 ${chat}");
-          //     // print("\n");
-          //   },
-          //   child: CircleAvatar(
-          //     maxRadius: 15,
-          //     backgroundColor: isdark
-          //         ? const Color.fromARGB(78, 25, 50, 98)
-          //         : kTextHint,
-          //     backgroundImage: AssetImage("assets/images/ai.png"),
-          //   ),
-          // ),
+    //         },
+    //         child: CircleAvatar(
+    //           maxRadius: 15,
+    //           backgroundColor: isdark
+    //               ? const Color.fromARGB(78, 25, 50, 98)
+    //               : kTextHint,
+    //           backgroundImage: AssetImage("assets/images/ai.png"),
+    //         ),
+    //       ),
           SizedBox(width: 15),
           GestureDetector(
             onTap: () {
@@ -547,7 +543,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ? ListView(
                     physics: AlwaysScrollableScrollPhysics(),
                     children: [
-                      Center(child: Lottie.asset("assets/lotties/rocket.json")),
+                      Center(child: SizedBox.shrink()),
                     ],
                   )
                 : ListView.builder(
