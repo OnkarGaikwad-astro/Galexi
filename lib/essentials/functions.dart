@@ -45,6 +45,27 @@ class SupabaseChatApi {
     }
   }
 
+  /////  save fcm token  //////
+
+  Future<void> savefcm()async{
+    print("saving fcm");
+    final user = await FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception('User not logged in');
+    }
+    final fcm = await FirebaseMessaging.instance.getToken();
+    final existing = await _db
+        .from('users')
+        .select('user_id')
+        .eq('user_id', user.email!)
+        .maybeSingle();
+    if (existing != null) {
+      await _db.from('users').update({"fcm_token":fcm}).eq('user_id', user.email!);
+    }
+    print("saved");
+  }
+
+
   ////  get user info  ////
   Future<Map<String, dynamic>?> getUser(String userId) async {
     return await _db.from('users').select().eq('user_id', userId).maybeSingle();
@@ -334,7 +355,7 @@ class SupabaseChatApi {
   Future<Map<String, dynamic>> getAllChatsFormatted(String userId) async {
     final rows = await _db
         .from('messages')
-        .select('msg,timestamp,sender_id,receiver_id,conversation_id')
+        .select('msg,timestamp,sender_id,receiver_id,conversation_id,members,id')
         .or('sender_id.eq.$userId,receiver_id.eq.$userId')
         .order('timestamp', ascending: true);
     final Map<String, List<Map<String, dynamic>>> chatMap = {};
@@ -349,6 +370,8 @@ class SupabaseChatApi {
         'sender_id': sender,
         'timestamp': m['timestamp'],
         'conversation_id': m['conversation_id'],
+        "members":m["members"],
+        "id":m["id"],
         'user_sent': sender == userId ? 'yes' : 'no',
       });
     }

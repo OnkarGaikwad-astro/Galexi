@@ -64,7 +64,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void handleNotificationNavigation(RemoteMessage message) async{
   // print("FCM DATA: ${message.data}");
   final type = message.data['type'];
-  await appKey.currentState?.all_chats_list();
+  appKey.currentState?.all_chats_list();
   if (type == 'chat') {
     // print("FCM DATA: ${message.data}");
     navigatorKey.currentState?.push(
@@ -126,6 +126,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    chatApi.savefcm();
     chatApi.setOnline();
     isdark = Hive.box("isdark").get("isDark") ?? true;
     retrive_data();

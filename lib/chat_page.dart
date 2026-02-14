@@ -14,6 +14,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -143,7 +144,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
-    msg_sent = true;
+    // msg_sent = true;
     final email = FirebaseAuth.instance.currentUser?.email;
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
     final box = Hive.box('cache');
@@ -219,7 +220,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             });
             
             if (newMsg == null) return;
-            // if (payload.eventType == PostgresChangeEvent.delete) return;
+            if (payload.eventType == PostgresChangeEvent.delete) return;
             if (newMsg["sender_id"] != myUserId) {
               receivedsound();
             }
@@ -523,10 +524,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           child: Column(
                             children: [
                               Text(
-                                style: TextStyle(
+                                style: GoogleFonts.josefinSans(
                                   fontSize: 25,
-                                  fontFamily: "cursive",
-                                  color: Isdark ? Colors.white : Colors.black,
+                                  color: Isdark ? const Color.fromARGB(177, 255, 255, 255) : Colors.black,
                                 ),
                                 contacts["contacts"][contacts["contacts"]
                                     .indexWhere(
@@ -886,8 +886,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
-                    style: TextStyle(
+"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
                     ),
@@ -1054,8 +1053,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
-                    style: TextStyle(
+"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
                     ),
@@ -1201,8 +1199,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
-                    style: TextStyle(
+"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
                     ),
@@ -1246,8 +1243,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               ),
               child: Text(
                 chat["messages"][no]["msg"],
-                style: TextStyle(
-                  fontFamily: "Comic Sans MS",
+                style: GoogleFonts.josefinSans(
                   color: const Color.fromARGB(255, 0, 0, 0),
                 ),
               ),
@@ -1310,8 +1306,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
-                    style: TextStyle(
+"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
                     ),
@@ -1356,8 +1351,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               ),
               child: Text(
                 chat["messages"][no]["msg"],
-                style: TextStyle(
-                  fontFamily: "Comic Sans MS",
+                style: GoogleFonts.josefinSans(
                   color: Colors.black,
                 ),
               ),
