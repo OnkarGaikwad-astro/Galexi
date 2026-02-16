@@ -41,6 +41,8 @@ String sender_last_seen = "";
 String SECRET_MARKER = '\u{E000}';
 bool msg_sent = true;
 String temp_msg = "";
+String chatId = "";
+
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   late RealtimeChannel typingChannel;
@@ -77,10 +79,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     );
     final dynamic result = msg_list["chats"].firstWhere(
       (c) =>
-          c["contact_id"] ==
+          c["chat_id"] ==
           contacts["contacts"][contacts["contacts"].indexWhere(
-            (e) => e['id'] == widget.ID,
-          )]["id"],
+            (e) => e['chat_id'] == chatId,
+          )]["chat_id"],
       orElse: () => <String, dynamic>{},
     );
     if (result == null) {
@@ -144,7 +146,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
-    // msg_sent = true;
     final email = FirebaseAuth.instance.currentUser?.email;
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
     final box = Hive.box('cache');
@@ -171,7 +172,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     });
     mark_msg_seen(widget.ID);
     final myUserId = FirebaseAuth.instance.currentUser!.email!;
-    final chatId = buildChatId(myUserId, widget.ID);
+    chatId = buildChatId(myUserId, widget.ID);
 
     //////  typing indicator  //////
     typingChannel = Supabase.instance.client
@@ -478,7 +479,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 contacts["contacts"][contacts["contacts"]
                                     .indexWhere(
                                       (e) => e['id'] == widget.ID,
-                                    )]["name"],
+                                    )]["chat_id"],
                             child: Container(
                               height: 40,
                               width: 40,
@@ -1461,7 +1462,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   Future<void> clear_chat() async {
     final contacts = all_contacts.value;
     final email = FirebaseAuth.instance.currentUser?.email;
-    await chatApi.clearChat(email!, widget.ID);
+    await chatApi.clearChat(chatId);
     user_contact();
     await all_chats_list();
     setState(() {});
@@ -1471,7 +1472,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   ////// delete message  //////
   Future<void> delete_msg(int convo_id) async {
     final email = FirebaseAuth.instance.currentUser!.email!;
-    await chatApi.deleteSingleMessage(email, widget.ID, convo_id);
+    await chatApi.deleteSingleMessage(chatId, convo_id);
     user_contact();
     await all_chats_list();
     HapticFeedback.heavyImpact();

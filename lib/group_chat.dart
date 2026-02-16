@@ -77,10 +77,10 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     );
     final dynamic result = msg_list["chats"].firstWhere(
       (c) =>
-          c["contact_id"] ==
+          c["chat_id"] ==
           contacts["contacts"][contacts["contacts"].indexWhere(
-            (e) => e['id'] == widget.ID,
-          )]["id"],
+            (e) => e['chat_id'] == widget.ID,
+          )]["chat_id"],
       orElse: () => <String, dynamic>{},
     );
     if (result == null) {
@@ -94,7 +94,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   ///////   send message   ////
   Future<void> send_message(String msg) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessageFast(email!, widget.ID, msg);
+    await chatApi.addMessagegrp(email!, widget.ID, msg);
     print("📖📖📖📖📖📖📖 ");
     if (msg != "") playClick();
     await all_chats_list();
@@ -109,8 +109,8 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
       all_contacts.value,
     );
     print("last_seen_fetch_start");
-    final response = await chatApi.getLastSeen(widget.ID);
-    sender_last_seen = response!;
+    // final response = await chatApi.getLastSeen(widget.ID);
+    // sender_last_seen = response!;
     setState(() {});
     print("🚀last_seeen_fetched");
     // print(response);
@@ -155,10 +155,6 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     setState(() {});
   }
 
-  String buildChatId(String a, String b) {
-    final pair = [a, b]..sort();
-    return pair.join("__");
-  }
 
   /// init state  ////
   @override
@@ -167,40 +163,40 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() async {
-      listenPresence(widget.ID);
+      // listenPresence(widget.ID);
     });
-    mark_msg_seen(widget.ID);
+    // mark_msg_seen(widget.ID);
     final myUserId = FirebaseAuth.instance.currentUser!.email!;
-    final chatId = buildChatId(myUserId, widget.ID);
+    // final chatId = buildChatId(myUserId, widget.ID);
 
-    //////  typing indicator  //////
-    typingChannel = Supabase.instance.client
-        .channel('typing:$chatId')
-        .onPostgresChanges(
-          event: PostgresChangeEvent.all,
-          schema: 'public',
-          table: 'typing_status',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'chat_id',
-            value: chatId,
-          ),
-          callback: (payload) {
-            print("chatid:$chatId");
-            print('📖 TYPING..');
-            final data = payload.newRecord;
-            if (data == null) return;
-            if (data['user_id'] == myUserId) return;
-            setState(() {
-              otherUserTyping = data['is_typing'] == true;
-            });
-          },
-        )
-        .subscribe();
+    // //////  typing indicator  //////
+    // typingChannel = Supabase.instance.client
+    //     .channel('typing:$chatId')
+    //     .onPostgresChanges(
+    //       event: PostgresChangeEvent.all,
+    //       schema: 'public',
+    //       table: 'typing_status',
+    //       filter: PostgresChangeFilter(
+    //         type: PostgresChangeFilterType.eq,
+    //         column: 'chat_id',
+    //         value: chatId,
+    //       ),
+    //       callback: (payload) {
+    //         print("chatid:$chatId");
+    //         print('📖 TYPING..');
+    //         final data = payload.newRecord;
+    //         if (data == null) return;
+    //         if (data['user_id'] == myUserId) return;
+    //         setState(() {
+    //           otherUserTyping = data['is_typing'] == true;
+    //         });
+    //       },
+    //     )
+    //     .subscribe();
 
     //////   messages realtime  ////
     messageChannel = Supabase.instance.client
-        .channel('messages:$chatId')
+        .channel('messages:${widget.ID}')
         .onPostgresChanges(
           event: PostgresChangeEvent.all,
           schema: 'public',
@@ -208,7 +204,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
           filter: PostgresChangeFilter(
             type: PostgresChangeFilterType.eq,
             column: 'id',
-            value: chatId,
+            value: widget.ID,
           ),
           callback: (payload) {
             print("🚀🚀🚀🚀🚀🚀🚀 NEW MESSAGE REALTIME");
@@ -249,11 +245,11 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     typingChannel.unsubscribe();
     presenceChannel.unsubscribe();
     final me = FirebaseAuth.instance.currentUser!.email!;
-    final chatId = buildChatId(me, widget.ID);
+    // final chatId = buildChatId(me, widget.ID);
     Supabase.instance.client
         .from('typing_status')
         .update({'is_typing': false})
-        .eq('chat_id', chatId)
+        .eq('chat_id', widget.ID)
         .eq('user_id', me);
     super.dispose();
   }
@@ -343,7 +339,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                         tag:
                                             contacts["contacts"][contacts["contacts"]
                                                 .indexWhere(
-                                                  (e) => e['id'] == widget.ID,
+                                                  (e) => e['chat_id'] == widget.ID,
                                                 )]["name"],
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(
@@ -355,7 +351,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                                 contacts["contacts"][contacts["contacts"]
                                                     .indexWhere(
                                                       (e) =>
-                                                          e['id'] == widget.ID,
+                                                          e['chat_id'] == widget.ID,
                                                     )]["profile_pic"],
                                               ),
                                               width: imageSize,
@@ -392,7 +388,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                       Text(
                                         contacts["contacts"][contacts["contacts"]
                                             .indexWhere(
-                                              (e) => e['id'] == widget.ID,
+                                              (e) => e['chat_id'] == widget.ID,
                                             )]["name"],
                                         style: TextStyle(
                                           fontFamily: "times new roman",
@@ -400,15 +396,15 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                         ),
                                       ),
                                       SizedBox(
-                                        height: 8,
+                                        height: 12,
                                         child: Text(
                                           widget.ID,
-                                          style: TextStyle(fontSize: 5),
+                                          style: TextStyle(fontSize: 7),
                                         ),
                                       ),
                                       contacts["contacts"][contacts["contacts"]
                                                   .indexWhere(
-                                                    (e) => e['id'] == widget.ID,
+                                                    (e) => e['chat_id'] == widget.ID,
                                                   )]["bio"] ==
                                               ""
                                           ? SizedBox.shrink()
@@ -446,7 +442,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                                         contacts["contacts"][contacts["contacts"]
                                                             .indexWhere(
                                                               (e) =>
-                                                                  e['id'] ==
+                                                                  e['chat_id'] ==
                                                                   widget.ID,
                                                             )]["bio"],
                                                         style: TextStyle(
@@ -477,8 +473,8 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                             tag:
                                 contacts["contacts"][contacts["contacts"]
                                     .indexWhere(
-                                      (e) => e['id'] == widget.ID,
-                                    )]["name"],
+                                      (e) => e['chat_id'] == widget.ID,
+                                    )]["chat_id"],
                             child: Container(
                               height: 40,
                               width: 40,
@@ -489,7 +485,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                     imageUrl:
                                         contacts["contacts"][contacts["contacts"]
                                             .indexWhere(
-                                              (e) => e['id'] == widget.ID,
+                                              (e) => e['chat_id'] == widget.ID,
                                             )]["profile_pic"],
                                     fit: BoxFit.cover,
                                     placeholder: (context, url) => const Center(
@@ -524,13 +520,13 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                           child: Column(
                             children: [
                               Text(
-                                style: GoogleFonts.exo2(
+                                style: GoogleFonts.josefinSans(
                                   fontSize: 25,
-                                  color: Isdark ? Colors.white : Colors.black,
+                                  color: Isdark ? const Color.fromARGB(177, 255, 255, 255) : Colors.black,
                                 ),
                                 contacts["contacts"][contacts["contacts"]
                                     .indexWhere(
-                                      (e) => e['id'] == widget.ID,
+                                      (e) => e['chat_id'] == widget.ID,
                                     )]["name"],
                                 softWrap: true,
                                 overflow: TextOverflow.ellipsis,
@@ -679,7 +675,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                         height: 50,
                         child: TextField(
                           onChanged: (value) {
-                            onTyping(widget.ID);
+                            // onTyping(widget.ID);
                             msg_sent = false;
                             temp_msg = type_msg.text;
                             if (type_msg.text.trim().isEmpty) {
@@ -724,8 +720,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                               ),
                               child: Text(
                                 "Send across the galaxy . . .",
-                                style: TextStyle(
-                                  fontFamily: "times new roman",
+                                style: GoogleFonts.josefinSans(
                                   letterSpacing: 1.5,
                                   fontSize: 13,
                                 ),
@@ -886,7 +881,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
                     style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
@@ -1054,7 +1049,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
                     style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
@@ -1078,48 +1073,68 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10.0, left: 12, right: 100),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Color.fromARGB(255, 109, 168, 174),
-            borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(15),
-              bottomRight: Radius.circular(15),
-              topRight: Radius.circular(15),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(4.0),
-            child: ClipRRect(
-              borderRadius: BorderRadiusGeometry.circular(12),
-              child: RepaintBoundary(
-                child: CachedNetworkImage(
-                  imageUrl: chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
-                  fit: BoxFit.cover,
-
-                  placeholder: (context, url) => const Center(
-                    child: SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        padding: EdgeInsets.all(5),
-                        color: Colors.black,
-                        constraints: BoxConstraints(
-                          minWidth: 20,
-                          minHeight: 20,
-                        ),
-                      ),
-                    ),
+        child: Column(
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Container(
+                width: 50,
+                child: Text(
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                  chat["messages"][no]["sender_name"],
+                  style: GoogleFonts.josefinSans(
+                    fontSize: 9,
+                    color: isdark ? const Color.fromARGB(255, 173, 200, 238):kBackground,
+                    fontWeight: FontWeight.w600,
                   ),
-
-                  errorWidget: (context, url, error) =>
-                      const Icon(Icons.broken_image),
-                  memCacheWidth: 400,
-                  fadeInDuration: Duration.zero,
-                  fadeOutDuration: Duration.zero,
                 ),
               ),
             ),
-          ),
+            Container(
+              decoration: BoxDecoration(
+                color: Color.fromARGB(255, 109, 168, 174),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(15),
+                  bottomRight: Radius.circular(15),
+                  topRight: Radius.circular(15),
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadiusGeometry.circular(12),
+                  child: RepaintBoundary(
+                    child: CachedNetworkImage(
+                      imageUrl: chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                      fit: BoxFit.cover,
+            
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            padding: EdgeInsets.all(5),
+                            color: Colors.black,
+                            constraints: BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+            
+                      errorWidget: (context, url, error) =>
+                          const Icon(Icons.broken_image),
+                      memCacheWidth: 400,
+                      fadeInDuration: Duration.zero,
+                      fadeOutDuration: Duration.zero,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1201,7 +1216,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
                     style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
@@ -1232,7 +1247,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                 child: Text(
                   softWrap: true,
                   overflow: TextOverflow.ellipsis,
-                  chat["messages"][no]["sender_id"],
+                  chat["messages"][no]["sender_name"],
                   style: GoogleFonts.josefinSans(
                     fontSize: 9,
                     color: isdark ? const Color.fromARGB(255, 173, 200, 238):kBackground,
@@ -1331,7 +1346,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-                    chat["messages"][no]["timestamp"],
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
                     style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
@@ -1433,10 +1448,10 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   void onTyping(String receiverId) async {
     print("changed");
     final me = FirebaseAuth.instance.currentUser!.email!;
-    final chatId = buildChatId(me, receiverId);
+    // final chatId = buildChatId(me, receiverId);
     print(1);
     await Supabase.instance.client.from('typing_status').upsert({
-      'chat_id': chatId,
+      'chat_id': widget.ID,
       'user_id': me,
       'is_typing': true,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
@@ -1447,7 +1462,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
       await Supabase.instance.client
           .from('typing_status')
           .update({'is_typing': false})
-          .eq('chat_id', chatId)
+          .eq('chat_id', widget.ID)
           .eq('user_id', me);
     });
     print(1);
@@ -1485,7 +1500,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   Future<void> clear_chat() async {
     final contacts = all_contacts.value;
     final email = FirebaseAuth.instance.currentUser?.email;
-    await chatApi.clearChat(email!, widget.ID);
+    await chatApi.clearChat(widget.ID);
     user_contact();
     await all_chats_list();
     setState(() {});
@@ -1495,7 +1510,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   ////// delete message  //////
   Future<void> delete_msg(int convo_id) async {
     final email = FirebaseAuth.instance.currentUser!.email!;
-    await chatApi.deleteSingleMessage(email, widget.ID, convo_id);
+    await chatApi.deleteSingleMessage(widget.ID, convo_id);
     user_contact();
     await all_chats_list();
     HapticFeedback.heavyImpact();

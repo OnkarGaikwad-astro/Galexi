@@ -1,6 +1,7 @@
 import 'package:Aera/add_contact.dart';
 import 'package:Aera/chat_page.dart';
 import 'package:Aera/chatbot_page.dart';
+import 'package:Aera/create_group.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
 import 'package:Aera/essentials/functions.dart';
@@ -111,10 +112,15 @@ class _MyHomePageState extends State<MyHomePage> {
                   if (value == "delete") {
                     final email =
                         await FirebaseAuth.instance.currentUser?.email;
-                    await chatApi.removeContactAndClearChat(
+                    
+                    if(contacts["contacts"][num]["group"]){
+                      await chatApi.remove_member_from_group(email!, contacts["contacts"][num]["chat_id"]);
+                    }else{
+                      await chatApi.removeContactAndClearChat(
                       email!,
                       contacts["contacts"][num]["id"],
                     );
+                    }
                     await user_contacts();
                     print("removed");
                     setState(() {});
@@ -124,11 +130,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
               onTap: () async {
                 HapticFeedback.selectionClick();
-                // mark_msg_seen(contacts["contacts"][num]["id"]);
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) =>
+                    contacts["contacts"][num]["group"]?GroupChat(ID:contacts["contacts"][num]["chat_id"]):
                         ChatPage(ID: contacts["contacts"][num]["id"]),
                   ),
                 );
@@ -178,11 +184,12 @@ class _MyHomePageState extends State<MyHomePage> {
                                                 contacts["contacts"][num]["name"],
                                             child: ClipRRect(
                                               borderRadius:
-                                                  BorderRadius.circular(20),
+                                                  BorderRadius.circular(25),
                                               child: RepaintBoundary(
                                                 child: CachedNetworkImage(
                                                   imageUrl: highQualityUrl(
                                                     contacts["contacts"][num]["profile_pic"],
+                                                    
                                                   ),
                                                   width: imageSize,
                                                   height: imageSize,
@@ -233,7 +240,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           );
                         },
                         child: Hero(
-                          tag: contacts["contacts"][num]["name"],
+                          tag: contacts["contacts"][num]["chat_id"],
                           child: Container(
                             height: 44,
                             width: 44,
@@ -292,47 +299,47 @@ class _MyHomePageState extends State<MyHomePage> {
                               ),
                             ),
                           ),
-                          Row(
-                            children: [
-                              SizedBox(width: 4),
-                              SizedBox(
-                                width: 210,
-                                child: Text(
-                                  overflow: TextOverflow.ellipsis,
+                          // Row(
+                          //   children: [
+                          //     SizedBox(width: 4),
+                          //     SizedBox(
+                          //       width: 210,
+                          //       child: Text(
+                          //         overflow: TextOverflow.ellipsis,
 
-                                  all_contacts.value["contacts"][num]["last_message"]
-                                          .contains(SECRET_MARKER)
-                                      ? " ◯ Image"
-                                      : all_contacts.value["contacts"][num]["last_message"],
-                                  style: GoogleFonts.exo2(
-                                    fontSize: 13.5,
-                                    color: const Color.fromARGB(
-                                      255,
-                                      198,
-                                      196,
-                                      196,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                          //         all_contacts.value["contacts"][num]["last_message"]
+                          //                 .contains(SECRET_MARKER)
+                          //             ? " ◯ Image"
+                          //             : all_contacts.value["contacts"][num]["last_message"],
+                          //         style: GoogleFonts.exo2(
+                          //           fontSize: 13.5,
+                          //           color: const Color.fromARGB(
+                          //             255,
+                          //             198,
+                          //             196,
+                          //             196,
+                          //           ),
+                          //         ),
+                          //       ),
+                          //     ),
+                          //   ],
+                          // ),
                         ],
                       ),
                     ),
-                    Text("${DateTime.parse(all_contacts.value["contacts"][num]["last_message_time"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(all_contacts.value["contacts"][num]["last_message_time"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontFamily: "times new roman",
-                        color: isdark
-                            ? Colors.grey
-                            : const Color.fromARGB(255, 72, 71, 71),
-                      ),
-                    ),
-                    SizedBox(width: 7),
-                    contacts["contacts"][num]["msg_seen"] != "seen"
-                        ? Text("🚀", style: TextStyle(fontSize: 14))
-                        : SizedBox.shrink(),
+                    // Text("${DateTime.parse(all_contacts.value["contacts"][num]["last_message_time"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(all_contacts.value["contacts"][num]["last_message_time"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
+                    //   style: TextStyle(
+                    //     fontSize: 8,
+                    //     fontFamily: "times new roman",
+                    //     color: isdark
+                    //         ? Colors.grey
+                    //         : const Color.fromARGB(255, 72, 71, 71),
+                    //   ),
+                    // ),
+                    // SizedBox(width: 7),
+                    // contacts["contacts"][num]["msg_seen"] != "seen"
+                    //     ? Text("🚀", style: TextStyle(fontSize: 14))
+                    //     : SizedBox.shrink(),
                   ],
                 ),
               ),
@@ -391,6 +398,7 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Icon(Icons.person_add_alt_1),
         onPressed: () {
           print("Onkar");
+          HapticFeedback.heavyImpact();
           Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => AddContact()),
@@ -414,25 +422,28 @@ class _MyHomePageState extends State<MyHomePage> {
           InkWell(
             borderRadius: BorderRadius.circular(17),
             onTap: () async {
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) {
-              //       return ChatbotPage();
-              //     },
-              //   ),
-              // );
-              print(all_msg_list.value);
+              HapticFeedback.heavyImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) {
+                    return ChatbotPage();
+                  },
+                ),
+              );
+            
               
-  
+/////// check  ///////  
 
             },
             child: CircleAvatar(
               maxRadius: 15,
               backgroundColor: isdark
-                  ? const Color.fromARGB(78, 25, 50, 98)
+                  ? kSentMessage
                   : kTextHint,
-              backgroundImage: AssetImage("assets/images/ai.png"),
+              // backgroundImage: AssetImage("assets/images/ai.png"),
+              child: Image.asset("assets/images/ai.png",color:isdark? Colors.white:Colors.black,),
+              foregroundColor: Colors.white,
             ),
           ),
           SizedBox(width: 15),
@@ -553,4 +564,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
+
+
 }

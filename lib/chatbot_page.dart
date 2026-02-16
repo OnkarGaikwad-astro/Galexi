@@ -39,6 +39,7 @@ TextEditingController type_msg = TextEditingController();
 bool msg_sent = true;
 bool otherUserTyping = false;
 String temp_msg = "";
+String chatId = "";
 
 class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
   late RealtimeChannel messageChannel;
@@ -100,7 +101,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
       all_contacts.value,
     );
     final dynamic result = msg_list["chats"].firstWhere(
-      (c) => c["contact_id"] == "chatbot",
+      (c) => c["chat_id"] == chatId,
       orElse: () => <String, dynamic>{},
     );
     if (result == null) {
@@ -118,7 +119,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
     otherUserTyping = true;
     gemini(msg);
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessageFast(email!, "chatbot", msg);
+    await chatApi.addMsgforchatbot(email!, "chatbot", msg);
     
     await all_chats_list();
     user_contact();
@@ -130,7 +131,6 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
 
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
-    // msg_sent = true;
     final email = FirebaseAuth.instance.currentUser?.email;
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
     final box = Hive.box('cache');
@@ -149,12 +149,12 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
   /// init state  ////
   @override
   void initState() {
+    otherUserTyping = false;
     noti = true;
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     final myUserId = FirebaseAuth.instance.currentUser!.email!;
-    final chatId = buildChatId(myUserId, "chatbot");
-
+    chatId = buildChatId(myUserId, "chatbot");
     //////   messages realtime  ////
     messageChannel = Supabase.instance.client
         .channel('messages:$chatId')
@@ -172,7 +172,6 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
             final newMsg = payload.newRecord;
             print("new msg $newMsg");
             setState(() {
-              
               all_chats_list();
             });
 
@@ -180,9 +179,8 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
             if (payload.eventType == PostgresChangeEvent.delete) return;
             if (newMsg["sender_id"] != myUserId) {
               print("📸📸📸 ");
-              
+              otherUserTyping = false;
               setState(() {
-                otherUserTyping = false;
               });
               receivedsound();
             }
@@ -745,8 +743,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
               ),
               child: Text(
                 temp_msg,
-                style: TextStyle(
-                  fontFamily: "Comic Sans MS",
+                style: GoogleFonts.josefinSans(
                   color: Colors.black,
                 ),
               ),
@@ -763,7 +760,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
   Future<void> clear_chat() async {
     final contacts = all_contacts.value;
     final email = FirebaseAuth.instance.currentUser?.email;
-    await chatApi.clearChat(email!, "chatbot");
+    await chatApi.clearChat(chatId);
     user_contact();
     await all_chats_list();
     setState(() {});
@@ -773,7 +770,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
   ////// delete message  //////
   Future<void> delete_msg(int convo_id) async {
     final email = FirebaseAuth.instance.currentUser!.email!;
-    await chatApi.deleteSingleMessage(email, "chatbot", convo_id);
+    await chatApi.deleteSingleMessage(chatId, convo_id);
     user_contact();
     await all_chats_list();
     HapticFeedback.heavyImpact();
@@ -785,42 +782,65 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
     await appKey.currentState?.user_contacts();
   }
 
-  Future<void> gemini(String prompt) async {
-    String apiKey = "AIzaSyCBT4vi-x_uTgZ7TiM3cQ-Xxmi-QcxGcos";
-    print("asking🚀🚀 ");
+  
+final List<String> apiKeys = [
+  "AIzaSyCfmtOni0ZW849wcCoIBowT35iu1bKukIA",
+  "AIzaSyCEtVE7HJcBFTDktqt9l5VuZku5QdDNgqg",
+  "AIzaSyAkTYr7_s2h2FDbUpWvBmTs4qJ580bBlo4",
+];
+
+Future<void> gemini(String prompt) async {
+  print("asking 🚀🚀");
+  String res = "ERROR";
+  for (String apiKey in apiKeys) {
     final url = Uri.parse(
       "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey",
     );
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: jsonEncode({
-        "contents": [
-          {
-            "parts": [
-              {
-                "text":
-                    prompt +
-                    "imagine u as an ai build by astro and named Aurex of u and u are an commercial ai mode build for an app named aera , dont always mention all info about u just give answers which was asked and must have frendly tone dont give long info give just main info ",
-              },
-            ],
-          },
-        ],
-      }),
-    );
-    String res = "ERROR";
-    if (response.statusCode == 200) {
-      res = jsonDecode(
-        response.body,
-      )["candidates"][0]["content"]["parts"][0]["text"];
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "contents": [
+            {
+              "parts": [
+                {
+                  "text":
+                      prompt +
+                      " imagine u as an ai build by astro and named Aurex of u and u are an commercial ai mode build for an app named aera, dont always mention all info about u just give answers which was asked and must have frendly tone dont give long info give just main info "
+                }
+              ]
+            }
+          ]
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        res = jsonDecode(response.body)
+            ["candidates"][0]["content"]["parts"][0]["text"];
+        break;
+      }
+
+      if (response.statusCode != 429 &&
+          response.statusCode != 401 &&
+          response.statusCode != 403) {
+        break; 
+      }
+
+    } catch (e) {
     }
-    send_response(res);
-    setState(() {});
   }
+
+  send_response(res);
+  setState(() {});
+}
+
 
   Future<void> send_response(String msg) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessageFast("chatbot", email!, msg);
+    await chatApi.addMsgforchatbot("chatbot", email!, msg);
+    otherUserTyping  = false;
+    receivedsound();
     await all_chats_list();
     user_contact();
     print("🚀🚀🚀🚀 response sent");
