@@ -7,6 +7,7 @@ import 'package:Aera/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:lottie/lottie.dart';
@@ -42,6 +43,46 @@ class _LoginPageState extends State<LoginPage> {
     });
   }
 
+
+  void showSignin(BuildContext context, String text) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+
+        backgroundColor: kTextHint,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Container(
+          height: 150,
+          width: 100,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+            child: Column(
+              children: [
+                 SizedBox(
+                  height: 95,
+                  child: Center(
+                  child: LottieBuilder.asset(
+                    "assets/lotties/Loading_Animation_blue.json",
+                  ),
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(text, style: GoogleFonts.josefinSans(fontSize: 15)),
+                  ],
+                ),
+               
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,10 +97,9 @@ class _LoginPageState extends State<LoginPage> {
                 SizedBox(
                   child: Text(
                     "Welcome to ",
-                    style: TextStyle(
+                    style: GoogleFonts.josefinSans(
                       color: Color(0xFFD4E4FF),
                       fontSize: 20,
-                      fontFamily: "times new roman",
                     ),
                   ),
                 ),
@@ -69,12 +109,11 @@ class _LoginPageState extends State<LoginPage> {
             SizedBox(
               child: Text(
                 "Aera",
-                style: TextStyle(
+                style: GoogleFonts.orbitron(
                   color: kIcon,
-                  fontFamily: "times new roman",
-                  fontWeight: FontWeight.w200,
+                  fontWeight: FontWeight.w300,
                   fontSize: 30,
-                  letterSpacing: 20,
+                  letterSpacing: 15,
                   shadows: [
                     Shadow(
                       color: const Color.fromARGB(124, 255, 255, 255),
@@ -85,16 +124,17 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-            SizedBox(height: 30),
+            SizedBox(height: 60),
             Center(
               child: LottieBuilder.asset(
-                "assets/lotties/hello.json",
+                "assets/lotties/Welcome__1.json",
                 height: 250,
               ),
             ),
             SizedBox(
-              height: FirebaseAuth.instance.currentUser == null ? 75 : 15,
+              height: FirebaseAuth.instance.currentUser == null ? 155 : 15,
             ),
+           
             FirebaseAuth.instance.currentUser == null
                 ? SizedBox(
                     width: 310,
@@ -105,8 +145,10 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       onPressed: () async {
+                        showSignin(context, "   Signing In . . .");
                         final user = await signInWithGoogle();
                         if (user != null) {
+                          Navigator.pop(context);
                           setState(() {});
                         }
                         ;
@@ -120,9 +162,8 @@ class _LoginPageState extends State<LoginPage> {
                           SizedBox(width: 20),
                           Text(
                             "Sign in with Google",
-                            style: TextStyle(
+                            style: GoogleFonts.josefinSans(
                               color: const Color.fromARGB(255, 74, 241, 233),
-                              fontFamily: "times new roman",
                               letterSpacing: 2,
                               wordSpacing: 2,
                               shadows: [
@@ -138,15 +179,8 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ),
                   )
-                : SizedBox(
-                    width: 100,
-                    height: 100,
-                    child: Lottie.asset(
-                      "assets/lotties/check_ok.json",
-                      repeat: true,
-                    ),
-                  ),
-            SizedBox(height: 40),
+                : SizedBox.shrink(),
+            SizedBox(height: 30),
             FirebaseAuth.instance.currentUser == null
                 ? SizedBox.shrink()
                 : SizedBox(
@@ -158,8 +192,7 @@ class _LoginPageState extends State<LoginPage> {
                       decoration: InputDecoration(
                         hint: Text(
                           "🚀  Share your cosmic self . . .",
-                          style: TextStyle(
-                            fontFamily: "times new roman",
+                          style: GoogleFonts.montaga(
                             letterSpacing: 1.5,
                           ),
                         ),
@@ -191,7 +224,7 @@ class _LoginPageState extends State<LoginPage> {
                         padding: EdgeInsets.all(10),
                         shape: RoundedRectangleBorder(
                           side: BorderSide(color: kAccentVariant, width: 200),
-                          borderRadius: BorderRadiusGeometry.circular(10),
+                          borderRadius: BorderRadiusGeometry.circular(15),
                         ),
                       ),
                       onPressed: () {
@@ -206,8 +239,7 @@ class _LoginPageState extends State<LoginPage> {
                       },
                       child: Text(
                         "Done",
-                        style: TextStyle(
-                          fontFamily: "times new roman",
+                        style: GoogleFonts.montaga(
                           color: const Color.fromARGB(255, 3, 198, 179),
                         ),
                       ),
@@ -217,8 +249,8 @@ class _LoginPageState extends State<LoginPage> {
             SizedBox(
               child: Text(
                 "Across Space 🚀 & Time",
-                style: TextStyle(
-                  fontFamily: "times new roman",
+                style: GoogleFonts.exo2(
+                  // fontFamily: "times new roman",
                   shadows: [
                     Shadow(
                       color: const Color.fromARGB(124, 255, 255, 255),
@@ -229,7 +261,12 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-            SizedBox(height: 100),
+            SizedBox(height: 25,),
+            Align(alignment: Alignment.bottomRight,child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text("Made with ❤️ By Onkar",style: GoogleFonts.josefinSans(fontSize: 10),),
+            ))
+            // SizedBox(height: 100),
           ],
         ),
       ),

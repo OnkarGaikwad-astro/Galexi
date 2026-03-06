@@ -72,9 +72,12 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
         child: Align(
           alignment: Alignment.topLeft,
           child: Container(
-            constraints: BoxConstraints(maxWidth: 100, maxHeight: 60),
+            height: 30,
+            width: 50,
+            // constraints: BoxConstraints(maxWidth: 100, maxHeight: 60),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
+              color: kTextHint,
+              // border: Border.all(color: const Color.fromARGB(237, 255, 255, 255)),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(15),
                 topLeft: Radius.zero,
@@ -83,7 +86,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
               ),
               // color:Color.fromARGB(50, 255, 255, 255),
             ),
-            child: Lottie.asset("assets/lotties/Chat typing indicator.json"),
+            child: Lottie.asset("assets/lotties/Dots.json"),
           ),
         ),
       );
@@ -281,7 +284,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
                                     ? const Color.fromARGB(188, 255, 255, 255)
                                     : Colors.black,
                               ),
-                              "Aurex!",
+                              "Aurex !",
                               softWrap: true,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -382,7 +385,8 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
                               borderRadius: BorderRadius.circular(25),
                             ),
                             width: 300,
-                            height: 50,
+                            // height: 50,
+                            height: double.maxFinite,
                             child: TextField(
                               onChanged: (value) {
                                 msg_sent = false;
@@ -404,44 +408,46 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
                                 temp_msg = "";
                               },
                               controller: type_msg,
+                              // maxLines: 4,
+                              textAlignVertical: TextAlignVertical.center,
                               cursorColor: Colors.teal,
                               decoration: InputDecoration(
+                                isDense: true,
+                                // contentPadding: EdgeInsets.all(10),
                                 hint: Padding(
                                   padding: const EdgeInsets.only(
                                     top: 20,
                                     bottom: 7,
                                   ),
                                   child: Text(
-                                    "Send across the galaxy . . .",
-                                    style: TextStyle(
-                                      fontFamily: "times new roman",
+                                    "  Type a cosmic question . . .",
+                                    style: GoogleFonts.josefinSans(
                                       letterSpacing: 1.5,
                                       fontSize: 13,
+                                      color: Colors.black
                                     ),
                                   ),
                                 ),
                                 filled: true,
-                                fillColor: const Color.fromARGB(46, 158, 158, 158),
+                                fillColor: const Color.fromARGB(189, 143, 167, 200),
                                 disabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: (Isdark
-                                        ? const Color.fromARGB(255, 255, 255, 255)
-                                        : Colors.black),
-                                  ),
+                                  // borderSide: BorderSide(
+                                  //   color: (Isdark
+                                  //       ? const Color.fromARGB(255, 255, 255, 255)
+                                  //       : Colors.black),
+                                  // ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: (Isdark ? Colors.white : Colors.black),
-                                  ),
+                                  // borderSide: BorderSide(
+                                  //   color: (Isdark ? Colors.white : Colors.black),
+                                  // ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
                                   borderSide: BorderSide(
-                                    color: (Isdark
-                                        ? const Color.fromARGB(255, 121, 120, 120)
-                                        : Colors.black),
+                                    color: const Color.fromARGB(0, 255, 255, 255)
                                   ),
                                 ),
                               ),
@@ -472,7 +478,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
                               temp_msg = "";
                               setState(() {});
                             },
-                            icon: Icon(Icons.send_rounded, size: 25),
+                            icon: Icon(Icons.send_rounded, size: 25,color: Colors.white,),
                           ),
                         ),
                       ],

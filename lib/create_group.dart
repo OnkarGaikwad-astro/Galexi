@@ -223,21 +223,21 @@ class _CreateGroupState extends State<CreateGroup> {
                                 enabledBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
                                     strokeAlign: BorderSide.strokeAlignCenter,
-                                    color: kTextPrimary,
+                                    color: kTextHint,
                                   ),
                                   borderRadius: BorderRadius.circular(15),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
                                     strokeAlign: BorderSide.strokeAlignCenter,
-                                    color: kTextPrimary,
+                                    color: kTextHint,
                                   ),
                                   borderRadius: BorderRadius.circular(15),
                                 ),
                                 border: OutlineInputBorder(
                                   borderSide: BorderSide(
                                     strokeAlign: BorderSide.strokeAlignCenter,
-                                    color: kTextPrimary,
+                                    color: kTextHint,
                                   ),
                                   borderRadius: BorderRadius.circular(15),
                                 ),
@@ -437,21 +437,21 @@ class _CreateGroupState extends State<CreateGroup> {
                       enabledBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           strokeAlign: BorderSide.strokeAlignCenter,
-                          color: kTextPrimary,
+                          color: kTextHint,
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           strokeAlign: BorderSide.strokeAlignCenter,
-                          color: kTextPrimary,
+                          color: kTextHint,
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide(
                           strokeAlign: BorderSide.strokeAlignCenter,
-                          color: kTextPrimary,
+                          color: kTextHint,
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),

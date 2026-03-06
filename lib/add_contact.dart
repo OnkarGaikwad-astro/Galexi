@@ -135,21 +135,21 @@ class _AddContactState extends State<AddContact> {
                       enabledBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           strokeAlign: BorderSide.strokeAlignCenter,
-                          color: kTextPrimary,
+                          color: kTextHint,
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderSide: BorderSide(
                           strokeAlign: BorderSide.strokeAlignCenter,
-                          color: kTextPrimary,
+                          color: kTextHint,
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide(
                           strokeAlign: BorderSide.strokeAlignCenter,
-                          color: kTextPrimary,
+                          color: kTextHint,
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),

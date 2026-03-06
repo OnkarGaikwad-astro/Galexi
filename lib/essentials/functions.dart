@@ -438,21 +438,28 @@ Future<void> fetch_api() async {
     return r?['fcm_token'];
   }
 
+
+
+
+
   Future<void> addMessageFast(
     String sender,
     String receiver,
     String msg,
-    String chatId
+    String chatId,
+    String type,
   ) async {
     // final chatId = buildChatId(sender, receiver);
     final members = all_contacts.value["contacts"][all_contacts.value["contacts"].indexWhere((e) => e['chat_id'] == chatId )]["members"];
-   
+   final name = (sender!="Aurex AI") ? await FirebaseAuth.instance.currentUser!.displayName:"Aurex AI";
     await _db.from('messages').insert({
       'chat_id': chatId,
       'sender_id': sender,
       'receiver_id': receiver,
       "members" : members,
       'msg': msg,
+      "type":type,
+      "sender_name":name
     });
      print("fetching fcm 😋 ");
     final fcm = await getUserToken(receiver);
@@ -472,6 +479,8 @@ Future<void> fetch_api() async {
       });
     }
   }
+
+
 
    Future<void> addMsgforchatbot(
     String sender,
@@ -569,7 +578,7 @@ Future<void> fetch_api() async {
     final rows = await _db
         .from('messages')
         .select(
-          'msg,timestamp,sender_id,receiver_id,conversation_id,chat_id,sender_name,sender_prof_pic',
+          'msg,timestamp,sender_id,receiver_id,conversation_id,chat_id,sender_name,sender_prof_pic,type',
         )
         .or('sender_id.eq.$userId,receiver_id.eq.$userId,members.cs.{${userId}}')
         .order('timestamp', ascending: true);
@@ -590,6 +599,7 @@ Future<void> fetch_api() async {
         'conversation_id': m['conversation_id'],
         "chat_id": m["chat_id"],
         'user_sent': sender == userId ? 'yes' : 'no',
+        "type":m["type"]
       });
     }
     final List<Map<String, dynamic>> chats = [];
@@ -671,6 +681,17 @@ Future<void> fetch_api() async {
         .eq('chat_id', chatId);
     print("object");
   }
+
+///// delete for user only   ////
+  Future<void> deleteMsgforusere(String chatId, int convoId) async {
+    await _db
+        .from('messages')
+        .delete()
+        .eq('conversation_id', convoId)
+        .eq('chat_id', chatId);
+    print("object");
+  }
+
 
   ////   clear chat  /////
 

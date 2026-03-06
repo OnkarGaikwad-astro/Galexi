@@ -7,6 +7,7 @@ import 'package:Aera/essentials/data.dart';
 import 'package:Aera/essentials/functions.dart';
 import 'package:Aera/group_chat.dart' hide SECRET_MARKER;
 import 'package:Aera/login_page.dart';
+import 'package:Aera/lotties_.dart';
 import 'package:Aera/main.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -437,6 +438,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         fadeOutDuration: Duration.zero,
                       ),
               ),
+              
               Text(FirebaseAuth.instance.currentUser!.displayName ?? "astro"),
               ElevatedButton(onPressed: () async{
                 await FirebaseAuth.instance.currentUser!.updateDisplayName("Onkar");
@@ -446,6 +448,12 @@ class _MyHomePageState extends State<MyHomePage> {
                   
                 });
               }, child: Text("Change name")),
+
+              ElevatedButton(onPressed: () {
+                Navigator.push(context, MaterialPageRoute(builder: (context) {
+                  return Lottiepage();
+                },));
+              }, child: Text("lottie")),
 
               ElevatedButton(
                 onPressed: () async {
@@ -586,14 +594,17 @@ class _MyHomePageState extends State<MyHomePage> {
             elevation: 10,
             color: kAccentVariant,
             onRefresh: _refresh,
-            child:
-                contacts["contact_count"] == null ||
-                    contacts["contact_count"] == 0
+            child:contacts["contact_count"] == 0
                 ? ListView(
                     physics: AlwaysScrollableScrollPhysics(),
                     children: [Center(child: SizedBox.shrink())],
                   )
-                : ListView.builder(
+                :contacts["contact_count"] == null ?ListView(
+                    physics: AlwaysScrollableScrollPhysics(),
+                    children: [SizedBox(
+                      height: 300,
+                    ),Center(child:Lottie.asset("assets/lotties/Sandy_Loading.json") )],
+                  ) :ListView.builder(
                     physics: AlwaysScrollableScrollPhysics(),
                     itemCount: contacts["contact_count"],
                     itemBuilder: (context, index) {

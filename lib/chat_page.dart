@@ -24,6 +24,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 bool Isdark = true;
+bool isSelecting = false;
+List selected_items = [];
+bool isreplying = false;
+int replyid = -1;
 bool noti = false;
 late RealtimeChannel presenceChannel;
 bool isOnline = false;
@@ -42,7 +46,6 @@ String SECRET_MARKER = '\u{E000}';
 bool msg_sent = true;
 String temp_msg = "";
 String chatId = "";
-
 
 class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   late RealtimeChannel typingChannel;
@@ -94,9 +97,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   ///////   send message   ////
-  Future<void> send_message(String msg) async {
+  Future<void> send_message(String msg,String type) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessageFast(email!, widget.ID, msg,chatId);
+    await chatApi.addMessageFast(email!, widget.ID, msg, chatId,type);
     print("📖📖📖📖📖📖📖 ");
     if (msg != "") playClick();
     await all_chats_list();
@@ -219,7 +222,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             setState(() {
               all_chats_list();
             });
-            
+
             if (newMsg == null) return;
             if (payload.eventType == PostgresChangeEvent.delete) return;
             if (newMsg["sender_id"] != myUserId) {
@@ -527,7 +530,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               Text(
                                 style: GoogleFonts.josefinSans(
                                   fontSize: 25,
-                                  color: Isdark ? const Color.fromARGB(177, 255, 255, 255) : Colors.black,
+                                  color: Isdark
+                                      ? const Color.fromARGB(177, 255, 255, 255)
+                                      : Colors.black,
                                 ),
                                 contacts["contacts"][contacts["contacts"]
                                     .indexWhere(
@@ -586,6 +591,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               Column(
                 children: [
                   SizedBox(height: 20),
+
+
+
+
+
                   Expanded(
                     child: ListView.builder(
                       reverse: true,
@@ -604,6 +614,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         int realIndex = (chat["message_count"] - 1) - index;
                         if (chat["messages"][realIndex]["msg"] == "")
                           return SizedBox.shrink();
+
                         return chat["messages"][realIndex]["user_sent"] == "no"
                             ? (chat["messages"][realIndex]["msg"].contains(
                                     SECRET_MARKER,
@@ -614,14 +625,20 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                     SECRET_MARKER,
                                   )
                                   ? sent_image_base(realIndex)
-                                  : sended_msg(realIndex));
+                                  : (chat["messages"][realIndex]["type"] == "message") ? sended_msg(realIndex): sendedreply(realIndex));
                       },
                     ),
                   ),
-                  !msg_sent
+
+
+
+
+                  typing_indi(),
+                  if (isreplying && replyid != -1) replyingwid(),
+                  (!msg_sent && !isreplying)
                       ? (temp_msg != "" ? temp_sended_msg() : SizedBox.shrink())
                       : SizedBox.shrink(),
-                  typing_indi(),
+
 
                   if (selectedImage != null)
                     Align(
@@ -669,7 +686,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 right: 0,
                 height: 50,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 13.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 13.0,
+                    vertical: 1,
+                  ),
                   child: Center(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -694,27 +714,43 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               },
                               onSubmitted: (value) async {
                                 HapticFeedback.selectionClick();
+
                                 msg_sent = false;
+
                                 setState(() {});
+
                                 final msg = type_msg.text;
+
                                 type_msg.text = "";
-                                if(msg.contains("@Aurex")){
+
+                                if (msg.contains("@Aurex")) {
                                   gemini(msg);
                                 }
-                                await send_message(msg);
+
+                                if(isreplying){
+                                  if(replyid != -1)
+                                  await send_message("${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"]} rpy ${msg}","reply");
+                                  isreplying = false;
+                                }else{
+                                  await send_message(msg,"message");
+                                }
                                 temp_msg = "";
                               },
                               controller: type_msg,
                               cursorColor: Colors.teal,
                               decoration: InputDecoration(
-                                suffixIcon: IconButton(icon: Icon(Icons.alternate_email_rounded),color:const Color.fromARGB(255, 150, 215, 245),onPressed: () {
-                                   type_msg.text = "@Aurex";
-                                },),
+                                suffixIcon: IconButton(
+                                  icon: Icon(Icons.alternate_email_rounded),
+                                  color: Colors.black,
+                                  iconSize: 23,
+                                  onPressed: () {
+                                    type_msg.text = "@Aurex ";
+                                  },
+                                ),
                                 prefixIcon: IconButton(
-                                  icon: Icon(
-                                    Icons.wallpaper_rounded,
-                                  ),
-                                  color: const Color.fromARGB(255, 150, 215, 245),
+                                  icon: Icon(Icons.wallpaper_rounded),
+                                  color: Colors.black,
+                                  iconSize: 23,
                                   onPressed: () async {
                                     HapticFeedback.selectionClick();
                                     final File? image =
@@ -732,36 +768,45 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                     bottom: 7,
                                   ),
                                   child: Text(
-                                    "Send across the galaxy . . .",
-                                    style: TextStyle(
-                                      fontFamily: "times new roman",
+                                    "Send across galaxy . . .",
+                                    style: GoogleFonts.josefinSans(
                                       letterSpacing: 1.5,
                                       fontSize: 13,
+                                      color: Colors.black,
                                     ),
                                   ),
                                 ),
                                 filled: true,
-                                fillColor: const Color.fromARGB(46, 158, 158, 158),
+                                isDense: true,
+                                fillColor: const Color.fromARGB(
+                                  189,
+                                  143,
+                                  167,
+                                  200,
+                                ),
                                 disabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: (Isdark
-                                        ? const Color.fromARGB(255, 255, 255, 255)
-                                        : Colors.black),
-                                  ),
+                                  // borderSide: BorderSide(
+                                  //   color: (Isdark
+                                  //       ? const Color.fromARGB(255, 255, 255, 255)
+                                  //       : Colors.black),
+                                  // ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: (Isdark ? Colors.white : Colors.black),
-                                  ),
+                                  // borderSide: BorderSide(
+                                  //   color: (Isdark ? Colors.white : Colors.black),
+                                  // ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(15),
                                   borderSide: BorderSide(
-                                    color: (Isdark
-                                        ? const Color.fromARGB(255, 121, 120, 120)
-                                        : Colors.black),
+                                    color: const Color.fromARGB(
+                                      0,
+                                      255,
+                                      255,
+                                      255,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -783,11 +828,19 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               setState(() {});
                               final msg = type_msg.text;
                               type_msg.text = "";
-                              if(msg.contains("@Aurex")){
-                                  gemini(msg);
-                                }
+                              if (msg.contains("@Aurex")) {
+                                gemini(msg);
+                              }
                               if (msg != "") {
-                                await send_message(msg);
+                                if(isreplying){
+                                  await send_message("${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"]} rpy ${msg}","reply");
+                                  isreplying = false;
+                                  setState(() {
+                                    
+                                  });
+                                }else{
+                                  await send_message(msg,"message");
+                                }
                               }
                               if (selectedImage != null) {
                                 await uploadImageBase64(selectedImage!);
@@ -796,7 +849,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               selectedImage = null;
                               setState(() {});
                             },
-                            icon: Icon(Icons.send_rounded, size: 25),
+                            icon: Icon(
+                              Icons.send_rounded,
+                              size: 25,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ],
@@ -805,6 +862,172 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  //////  replying widget  //////
+  Widget replyingwid() {
+    return Align(
+      alignment: AlignmentGeometry.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12, right: 10),
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 150),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            // color: Color(0xFF5BB9A8),
+            color: kTextHint,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
+            child: Column(
+              children: [
+                // Container(color: Colors.white,child: Text(chat["messages"][4]["msg"]),)
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    color: kDivider,
+                  ),
+                  constraints: BoxConstraints(maxHeight: 90, maxWidth: 170),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              // chat["messages"][replyid]["sender_name"],
+                              "Onkar",
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.exo2(
+                                // color: const Color.fromARGB(255, 2, 194, 174),
+                                color: kTextSecondary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              chat["messages"][replyid]["msg"],
+                              softWrap: true,
+                              style: GoogleFonts.josefinSans(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                // SizedBox(height: 5),
+                Container(
+                  // constraints: BoxConstraints(maxHeight: 150),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(3.0),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: 150),
+                        child: SingleChildScrollView(child: Text(temp_msg)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+
+//////  sended reply widget  //////
+
+  Widget sendedreply(no) {
+    final msg = chat["messages"][no]["msg"].toString().split("rpy");
+    return Align(
+      alignment: AlignmentGeometry.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12, right: 10),
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 270),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            // color: Color(0xFF5BB9A8),
+            color: Color.fromARGB(255, 130, 158, 190),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
+            child: IntrinsicWidth(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      color: kDivider,
+                    ),
+                    constraints: BoxConstraints(maxHeight: 90),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                msg[0],
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.exo2(
+                                  // color: const Color.fromARGB(255, 2, 194, 174),
+                                  color: kTextSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                msg[1],
+                                softWrap: true,
+                                style: GoogleFonts.josefinSans(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // SizedBox(height: 5),
+                  Container(
+                    // constraints: BoxConstraints(maxHeight: 150),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(3.0),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: 150),
+                          child: SingleChildScrollView(child: Text(msg[2],style: GoogleFonts.josefinSans(color: Colors.black),)),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -899,7 +1122,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
+                    style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
                     ),
@@ -941,9 +1165,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   child: RepaintBoundary(
                     child: CachedNetworkImage(
                       filterQuality: FilterQuality.high,
-                      imageUrl: chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                      imageUrl: chat["messages"][no]["msg"].split(
+                        SECRET_MARKER,
+                      )[1],
                       fit: BoxFit.cover,
-            
+
                       placeholder: (context, url) => const Center(
                         child: SizedBox(
                           height: 20,
@@ -958,10 +1184,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-            
+
                       errorWidget: (context, url, error) =>
                           const Icon(Icons.broken_image),
-            
+
                       memCacheWidth: 400,
                       fadeInDuration: Duration.zero,
                       fadeOutDuration: Duration.zero,
@@ -970,26 +1196,26 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
               ),
             ),
-             Positioned(
-                  right: 10,
-                  bottom: 10,
-                  child: Text(
-                    textAlign: TextAlign.end,
-                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 12,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2), // X and Y position
-                          blurRadius: 4, // Softness
-                          color: Colors.black, // Shadow color
-                        ),
-                      ],
-                      fontWeight: FontWeight.w600,
+            Positioned(
+              right: 10,
+              bottom: 10,
+              child: Text(
+                textAlign: TextAlign.end,
+                "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 12,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2, 2), // X and Y position
+                      blurRadius: 4, // Softness
+                      color: Colors.black, // Shadow color
                     ),
-                  ),
+                  ],
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1076,6 +1302,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               ),
             ),
             PopupMenuItem(
+              value: "reply",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: const Color.fromARGB(255, 255, 255, 255)),
+                  SizedBox(width: 10),
+                  Text("Reply"),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: "save_img",
               child: Row(
                 children: [
@@ -1090,7 +1326,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
+                    style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
                     ),
@@ -1108,6 +1345,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
             );
             print("saved");
+          }
+          if(value == "reply"){
+            replyid = no;
+            setState(() {
+              
+            });
           }
         });
       },
@@ -1130,9 +1373,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   borderRadius: BorderRadiusGeometry.circular(12),
                   child: RepaintBoundary(
                     child: CachedNetworkImage(
-                      imageUrl: chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                      imageUrl: chat["messages"][no]["msg"].split(
+                        SECRET_MARKER,
+                      )[1],
                       fit: BoxFit.cover,
-            
+
                       placeholder: (context, url) => const Center(
                         child: SizedBox(
                           height: 20,
@@ -1147,7 +1392,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-            
+
                       errorWidget: (context, url, error) =>
                           const Icon(Icons.broken_image),
                       memCacheWidth: 400,
@@ -1158,26 +1403,26 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 ),
               ),
             ),
-             Positioned(
-                  left: 10,
-                  bottom: 10,
-                  child: Text(
-                    textAlign: TextAlign.end,
-                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 12,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2), // X and Y position
-                          blurRadius: 4, // Softness
-                          color: Colors.black, // Shadow color
-                        ),
-                      ],
-                      fontWeight: FontWeight.w600,
+            Positioned(
+              left: 10,
+              bottom: 10,
+              child: Text(
+                textAlign: TextAlign.end,
+                "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                style: GoogleFonts.spaceGrotesk(
+                  fontSize: 12,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2, 2), // X and Y position
+                      blurRadius: 4, // Softness
+                      color: Colors.black, // Shadow color
                     ),
-                  ),
+                  ],
+                  fontWeight: FontWeight.w600,
                 ),
+              ),
+            ),
           ],
         ),
       ),
@@ -1204,7 +1449,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     print("\n");
     print("🚀url 📷${url}");
     print("\n");
-    await send_message("${SECRET_MARKER}${url}");
+    await send_message("${SECRET_MARKER}${url}","image");
     setState(() {});
   }
 
@@ -1243,6 +1488,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               ),
             ),
             PopupMenuItem(
+              value: "reply",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: const Color.fromARGB(255, 255, 255, 255)),
+                  SizedBox(width: 10),
+                  Text("Reply"),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: "Copy",
               child: Row(
                 children: [
@@ -1260,7 +1515,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 children: [
                   SizedBox(width: 30),
                   Text(
-"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
+                    style: TextStyle(
                       color: Colors.blueGrey,
                       fontFamily: "times new roman",
                     ),
@@ -1276,6 +1532,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           ;
           if (value == "Copy") {
             Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
+          }
+          if(value == "reply"){
+            isreplying = true;
+            replyid = no;
+            setState(() {
+              
+            });
           }
         });
       },
@@ -1303,33 +1566,34 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 right: 7,
               ),
               child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        chat["messages"][no]["msg"],
-                        style: GoogleFonts.josefinSans(
-                          color: const Color.fromARGB(255, 0, 0, 0),
-                        ),
-                      ),
-                      Text(
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.left,
-                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 10,
-                          color: Colors.white,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    chat["messages"][no]["msg"],
+                    style: GoogleFonts.josefinSans(
+                      color: const Color.fromARGB(255, 0, 0, 0),
+                    ),
+                  ),
+                  Text(
+                    softWrap: true,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.left,
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 10,
+                      color: Colors.white,
                       shadows: [
                         Shadow(
                           offset: Offset(2, 2), // X and Y position
                           blurRadius: 4, // Softness
                           color: Colors.black, // Shadow color
-                        ),],
-                          fontWeight: FontWeight.w400,
                         ),
-                      ),
-                    ],
+                      ],
+                      fontWeight: FontWeight.w400,
+                    ),
                   ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1339,127 +1603,163 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   //////// sent message widget  ///////
   Widget sended_msg(int no) {
-    return GestureDetector(
-      onLongPressStart: (details) {
-        HapticFeedback.selectionClick();
-        showMenu(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadiusGeometry.circular(20),
-          ),
-          popUpAnimationStyle: AnimationStyle(
-            duration: Duration(milliseconds: 200),
-            reverseDuration: Duration(milliseconds: 100),
-          ),
-          shadowColor: kAccentVariant,
-          elevation: 100,
-          context: context,
-          position: RelativeRect.fromLTRB(
-            details.globalPosition.dx,
-            details.globalPosition.dy,
-            0,
-            0,
-          ),
-          menuPadding: EdgeInsets.all(2),
-          items: [
-            PopupMenuItem(
-              value: "delete",
+    return Transform.translate(
+      offset: Offset(0, 0),
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          print("Swiped Left");
+          setState(() {
+            // details.delta.dx
+            // left = left + 1;
+            // // print(details.localPosition.dx);
+            // print(left);
+          });
+          setState(() {});
+        },
+        onLongPressStart: (details) {
+          HapticFeedback.selectionClick();
+          showMenu(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadiusGeometry.circular(20),
+            ),
+            popUpAnimationStyle: AnimationStyle(
+              duration: Duration(milliseconds: 200),
+              reverseDuration: Duration(milliseconds: 100),
+            ),
+            shadowColor: kAccentVariant,
+            elevation: 100,
+            context: context,
+            position: RelativeRect.fromLTRB(
+              details.globalPosition.dx,
+              details.globalPosition.dy,
+              0,
+              0,
+            ),
+            menuPadding: EdgeInsets.all(2),
+            items: [
+              PopupMenuItem(
+                value: "delete",
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, color: Colors.red),
+                    SizedBox(width: 10),
+                    Text("Delete"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+              value: "reply",
               child: Row(
                 children: [
-                  Icon(Icons.delete, color: Colors.red),
+                  Icon(Icons.delete, color: const Color.fromARGB(255, 255, 255, 255)),
                   SizedBox(width: 10),
-                  Text("Delete"),
+                  Text("Reply"),
                 ],
               ),
             ),
-            PopupMenuItem(
-              value: "Copy",
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.content_copy_outlined,
-                    color: const Color.fromARGB(255, 8, 242, 219),
-                  ),
-                  SizedBox(width: 10),
-                  Text("Copy Text"),
-                ],
-              ),
-            ),
-            PopupMenuItem(
-              child: Row(
-                children: [
-                  SizedBox(width: 30),
-                  Text(
-"${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",                    style: TextStyle(
-                      color: Colors.blueGrey,
-                      fontFamily: "times new roman",
+              PopupMenuItem(
+                value: "Copy",
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.content_copy_outlined,
+                      color: const Color.fromARGB(255, 8, 242, 219),
                     ),
-                  ),
-                ],
+                    SizedBox(width: 10),
+                    Text("Copy Text"),
+                  ],
+                ),
               ),
-            ),
-          ],
-        ).then((value) {
-          if (value == "delete") {
-            delete_msg(chat["messages"][no]["conversation_id"]);
-          }
-          ;
-          if (value == "Copy") {
-            Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
-          }
-          ;
-        });
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
-        child: Align(
-          alignment: Alignment.topRight,
-          child: Container(
-            constraints: BoxConstraints(maxWidth: 270),
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(15),
-                topLeft: Radius.circular(15),
-                bottomRight: Radius.circular(15),
-                topRight: Radius.zero,
-              ),
-              color: Color.fromARGB(255, 130, 158, 190),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.only(
-                bottom: 3,
-                top: 3,
-                left: 7,
-                right: 7,
-              ),
-              child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        chat["messages"][no]["msg"],
-                        style: GoogleFonts.josefinSans(
-                          color: const Color.fromARGB(255, 0, 0, 0),
-                        ),
+              PopupMenuItem(
+                child: Row(
+                  children: [
+                    SizedBox(width: 30),
+                    Text(
+                      "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
+                      style: TextStyle(
+                        color: Colors.blueGrey,
+                        fontFamily: "times new roman",
                       ),
-                      Text(
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.left,
-                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 10,
-                          color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2), // X and Y position
-                          blurRadius: 4, // Softness
-                          color: Colors.black, // Shadow color
-                        ),],
-                          fontWeight: FontWeight.w400,
-                        ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ).then((value) {
+            if (value == "delete") {
+              delete_msg(chat["messages"][no]["conversation_id"]);
+            }
+            ;
+            if (value == "Copy") {
+              Clipboard.setData(
+                ClipboardData(text: chat["messages"][no]["msg"]),
+              );
+            }
+            if(value == "reply"){
+              isreplying = true;
+            replyid = no;
+            setState(() {
+              
+            });
+          }
+            ;
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
+          child: Align(
+            alignment: Alignment.topRight,
+            child: Container(
+              constraints: BoxConstraints(maxWidth: 270),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: const Color.fromARGB(0, 255, 255, 255),
+                ),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(15),
+                  topLeft: Radius.circular(15),
+                  bottomRight: Radius.circular(15),
+                  topRight: Radius.zero,
+                ),
+                color: Color.fromARGB(255, 130, 158, 190),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.only(
+                  bottom: 3,
+                  top: 3,
+                  left: 7,
+                  right: 7,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      chat["messages"][no]["msg"],
+                      style: GoogleFonts.josefinSans(
+                        color: const Color.fromARGB(255, 0, 0, 0),
                       ),
-                    ],
-                  ),
+                    ),
+                    Text(
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.left,
+                      "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 10,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            offset: Offset(2, 2), // X and Y position
+                            blurRadius: 4, // Softness
+                            color: Colors.black, // Shadow color
+                          ),
+                        ],
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -1542,9 +1842,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         child: Align(
           alignment: Alignment.topLeft,
           child: Container(
-            constraints: BoxConstraints(maxWidth: 100, maxHeight: 60),
+            height: 30,
+            width: 50,
+            // constraints: BoxConstraints(maxWidth: 100, maxHeight: 60),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
+              color: kTextHint,
+              // border: Border.all(color: const Color.fromARGB(237, 255, 255, 255)),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(15),
                 topLeft: Radius.zero,
@@ -1553,7 +1856,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               ),
               // color:Color.fromARGB(50, 255, 255, 255),
             ),
-            child: Lottie.asset("assets/lotties/Chat typing indicator.json"),
+            child: Lottie.asset("assets/lotties/Dots.json"),
           ),
         ),
       );
@@ -1589,64 +1892,70 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   ///////   chatbot   //////
-   
-Future<void> gemini(String prompt) async {
-  chatApi.fetch_api();
-  print("asking 🚀🚀");
-  String res = "Error";
-  for (String apiKey in api_keys.value) {
-    final url = Uri.parse(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey",
-    );
 
-    try {
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {
-                  "text":
-                      prompt +
-                      " imagine u as an ai build by astro and named Aurex of u and u are an commercial ai mode build for an app named aera, dont always mention all info about u just give answers which was asked and must have frendly tone dont give long info give just main info"
-                }
-              ]
-            }
-          ]
-        }),
+  Future<void> gemini(String prompt) async {
+    chatApi.fetch_api();
+    print("asking 🚀🚀");
+    String res = "Error";
+    for (String apiKey in api_keys.value) {
+      final url = Uri.parse(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey",
       );
 
-      print("Status: ${response.statusCode}");
+      try {
+        final response = await http.post(
+          url,
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text":
+                        prompt +
+                        " imagine u as an ai build by astro and named Aurex of u and u are an commercial ai mode build for an app named aera, dont always mention all info about u just give answers which was asked and must have frendly tone dont give long info give just main info",
+                  },
+                ],
+              },
+            ],
+          }),
+        );
 
-      if (response.statusCode == 200) {
-        res = jsonDecode(response.body)
-            ["candidates"][0]["content"]["parts"][0]["text"];
-        break;
-      }
-      if (response.statusCode == 429 ||
-          response.statusCode == 401 ||
-          response.statusCode == 403) {
-        print("Key failed, trying next...");
+        print("Status: ${response.statusCode}");
+
+        if (response.statusCode == 200) {
+          res = jsonDecode(
+            response.body,
+          )["candidates"][0]["content"]["parts"][0]["text"];
+          break;
+        }
+        if (response.statusCode == 429 ||
+            response.statusCode == 401 ||
+            response.statusCode == 403) {
+          print("Key failed, trying next...");
+          continue;
+        } else {
+          print("Other error: ${response.statusCode}");
+          break;
+        }
+      } catch (e) {
+        print("Exception: $e");
         continue;
-      } else {
-        print("Other error: ${response.statusCode}");
-        break;
       }
-
-    } catch (e) {
-      print("Exception: $e");
-      continue;
     }
+    send_response(res);
+    setState(() {});
   }
-  send_response(res);
-  setState(() {});
-}
 
   Future<void> send_response(String msg) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessageFast("Aurex AI",widget.ID, "Aurex AI\n\n"+ msg,chatId);
+    await chatApi.addMessageFast(
+      "Aurex AI",
+      widget.ID,
+      "Aurex AI\n\n" + msg,
+      chatId,
+      "message"
+    );
     print("🚀🚀🚀🚀 response sent");
   }
 }

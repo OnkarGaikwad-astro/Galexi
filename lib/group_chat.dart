@@ -708,16 +708,17 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                 },
                                 controller: type_msg,
                                 cursorColor: Colors.teal,
-                                
                                 decoration: InputDecoration(
-                                  suffixIcon: IconButton(icon: Icon(Icons.alternate_email_rounded),color:const Color.fromARGB(255, 150, 215, 245),onPressed: () {
-                                   type_msg.text = "@Aurex";
+                                  isDense: true,
+                                  suffixIcon: IconButton(icon: Icon(Icons.alternate_email_rounded),color:Colors.black,iconSize: 23,onPressed: () {
+                                   type_msg.text = "@Aurex ";
                                 },),
                                   prefixIcon: IconButton(
                                     icon: Icon(
                                       Icons.wallpaper_rounded,
                                     ),
-                                    color: const Color.fromARGB(255, 150, 215, 245),
+                                    color:Colors.black,
+                                    iconSize: 23,
                                     onPressed: () async {
                                       HapticFeedback.selectionClick();
                                       final File? image =
@@ -735,37 +736,36 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                       bottom: 7,
                                     ),
                                     child: Text(
-                                      "Send across the galaxy . . .",
+                                      "Send across Galaxy . . .",
                                       style: GoogleFonts.josefinSans(
                                         letterSpacing: 1.5,
                                         fontSize: 13,
+                                        color: Colors.black
                                       ),
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: const Color.fromARGB(46, 158, 158, 158),
-                                  disabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                    borderSide: BorderSide(
-                                      color: (Isdark
-                                          ? const Color.fromARGB(255, 255, 255, 255)
-                                          : Colors.black),
-                                    ),
+                                  fillColor: const Color.fromARGB(189, 143, 167, 200),
+                                   disabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                  // borderSide: BorderSide(
+                                  //   color: (Isdark
+                                  //       ? const Color.fromARGB(255, 255, 255, 255)
+                                  //       : Colors.black),
+                                  // ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                  // borderSide: BorderSide(
+                                  //   color: (Isdark ? Colors.white : Colors.black),
+                                  // ),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                  borderSide: BorderSide(
+                                    color: const Color.fromARGB(0, 255, 255, 255)
                                   ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                    borderSide: BorderSide(
-                                      color: (Isdark ? Colors.white : Colors.black),
-                                    ),
-                                  ),
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(15),
-                                    borderSide: BorderSide(
-                                      color: (Isdark
-                                          ? const Color.fromARGB(255, 121, 120, 120)
-                                          : Colors.black),
-                                    ),
-                                  ),
+                                ),
                                 ),
                               ),
                             ),
@@ -798,7 +798,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                 selectedImage = null;
                                 setState(() {});
                               },
-                              icon: Icon(Icons.send_rounded, size: 25),
+                              icon: Icon(Icons.send_rounded, size: 25,color: Colors.white,),
                             ),
                           ),
                         ],
@@ -1621,16 +1621,19 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   }
 
   ///// typing indicator  /////
-  Widget typing_indi() {
+ Widget typing_indi() {
     if (otherUserTyping) {
       return Padding(
         padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
         child: Align(
           alignment: Alignment.topLeft,
           child: Container(
-            constraints: BoxConstraints(maxWidth: 100, maxHeight: 60),
+            height: 30,
+            width: 50,
+            // constraints: BoxConstraints(maxWidth: 100, maxHeight: 60),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
+              color: kTextHint,
+              // border: Border.all(color: const Color.fromARGB(237, 255, 255, 255)),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(15),
                 topLeft: Radius.zero,
@@ -1639,7 +1642,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
               ),
               // color:Color.fromARGB(50, 255, 255, 255),
             ),
-            child: Lottie.asset("assets/lotties/Chat typing indicator.json"),
+            child: Lottie.asset("assets/lotties/Dots.json"),
           ),
         ),
       );
