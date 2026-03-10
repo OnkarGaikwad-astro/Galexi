@@ -25,6 +25,7 @@ import 'package:lottie/lottie.dart';
 
 Color chat_color = const Color.fromARGB(133, 16, 37, 79);
 bool isdark = true;
+late String your_name;
 
 class MyHomePage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -376,7 +377,6 @@ class _MyHomePageState extends State<MyHomePage> {
     super.initState();
     chatApi.fetch_api();
     chatApi.savefcm();
-
     if(Hive.box("aurex_api").get("keys")!=null){
       api_keys.value = Hive.box("aurex_api").get("keys");
     }

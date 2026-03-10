@@ -31,7 +31,7 @@ int replyid = -1;
 bool noti = false;
 late RealtimeChannel presenceChannel;
 bool isOnline = false;
-
+String your_name = "";
 class ChatPage extends StatefulWidget {
   final dynamic ID;
   const ChatPage({super.key, required this.ID});
@@ -95,6 +95,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } else {
       chat = Map<String, dynamic>.from(result);
     }
+    setState(() {});
+  }
+
+
+  Future<void> username() async {
+      final name = await FirebaseAuth.instance.currentUser!.displayName;
+      your_name = name!;
+      print(name);
     setState(() {});
   }
 
@@ -170,6 +178,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   @override
   void initState() {
     noti = true;
+    username();
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() async {
@@ -589,6 +598,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             backgroundColor: Isdark ? kSentMessage : kTextHint,
           ),
           body: Stack(
+            clipBehavior: Clip.hardEdge,
             children: [
               Column(
                 children: [
@@ -617,7 +627,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             ? (chat["messages"][realIndex]["msg"].contains(
                                     SECRET_MARKER,
                                   )
-                                  ? received_image_base(realIndex)
+                                  ? (chat["messages"][realIndex]["type"] ==
+                                            "reply")
+                                        ? receivedreply(realIndex)
+                                        : received_image_base(realIndex)
                                   : (chat["messages"][realIndex]["type"] ==
                                         "message")
                                   ? recieved_msg(realIndex)
@@ -636,53 +649,68 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                       },
                     ),
                   ),
-
                   typing_indi(),
-                  if (isreplying && replyid != -1) replyingwid(),
-                  (!msg_sent && !isreplying)
-                      ? (temp_msg != "" ? temp_sended_msg() : SizedBox.shrink())
-                      : SizedBox.shrink(),
-
-                  if (selectedImage != null)
-                    Align(
-                      alignment: AlignmentGeometry.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 12, right: 10),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: Isdark ? kTextPrimary : Colors.black,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadiusGeometry.circular(
-                                    10,
-                                  ),
-                                  child: Image.file(selectedImage!, height: 70),
+                  SizedBox(height: 65),
+                ],
+              ),
+              if (selectedImage != null)
+                Positioned(
+                  bottom: 55,
+                  left: 10,
+                  child: Align(
+                    alignment: AlignmentGeometry.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12, right: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: Isdark ? kTextPrimary : Colors.black,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2.0),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadiusGeometry.circular(10),
+                                child: Image.file(selectedImage!, height: 70),
+                              ),
+                              Positioned(
+                                right: -17,
+                                bottom: 40,
+                                child: IconButton(
+                                  icon: Icon(Icons.close),
+                                  color: Colors.white,
+                                  onPressed: () {
+                                    setState(() => selectedImage = null);
+                                  },
                                 ),
-                                Positioned(
-                                  right: -17,
-                                  bottom: 40,
-                                  child: IconButton(
-                                    icon: Icon(Icons.close),
-                                    color: Colors.white,
-                                    onPressed: () {
-                                      setState(() => selectedImage = null);
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  SizedBox(height: 65),
-                ],
-              ),
+                  ),
+                ),
+              if (isreplying && replyid != -1)
+                Positioned(
+                  bottom: 100,
+                  left: 0,
+                  right: 0,
+                  // height: 50,
+                  child: replyingwid(),
+                ),
+              (!msg_sent && !isreplying)
+                  ? (temp_msg != ""
+                        ? Positioned(
+                            bottom: 60,
+                            left: 0,
+                            right: 0,
+                            child: temp_sended_msg(),
+                          )
+                        : SizedBox.shrink())
+                  : SizedBox.shrink(),
+
               Positioned(
                 bottom: 15,
                 left: 0,
@@ -727,13 +755,15 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 type_msg.text = "";
 
                                 if (msg.contains("@Aurex")) {
-                                  gemini(msg);
-                                }
+                                    if(isreplying && replyid!=-1){
+                                      gemini("{ ${chat["messages"][replyid]["msg"].toString().split("rpy").last} } in the curly bracket all text is from another person and i was replying it so based on that text answer me following question dont give other information"+msg);
+                                    }else{gemini(msg);}
+                                  }
 
                                 if (isreplying) {
                                   if (replyid != -1)
                                     await send_message(
-                                      "${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"]} rpy ${msg}",
+                                      "${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"].toString().split("rpy").last} rpy ${msg}",
                                       "reply",
                                     );
                                   isreplying = false;
@@ -742,6 +772,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                 }
                                 temp_msg = "";
                               },
+                              style: GoogleFonts.josefinSans(
+                                color: Colors.black,
+                              ),
                               controller: type_msg,
                               cursorColor: Colors.teal,
                               decoration: InputDecoration(
@@ -835,23 +868,27 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               final msg = type_msg.text;
                               type_msg.text = "";
                               if (msg.contains("@Aurex")) {
-                                gemini(msg);
-                              }
+                                    if(isreplying && replyid!=-1){
+                                      gemini("{ ${chat["messages"][replyid]["msg"].toString().split("rpy").last} } in the curly bracket all text is from another person and i was replying it so based on that text answer me following question dont give other information"+msg);
+                                    }else{gemini(msg);}
+                                  }
                               if (msg != "") {
                                 if (isreplying) {
-                                  await send_message(
-                                    "${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"]} rpy ${msg}",
-                                    "reply",
-                                  );
+                                  if (replyid != -1)
+                                    await send_message(
+                                      "${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"].toString().split("rpy").last} rpy ${msg}",
+                                      "reply",
+                                    );
                                   isreplying = false;
                                   setState(() {});
+                                  print("object 1");
+                                } else if (selectedImage != null) {
+                                  await uploadImageBase64(selectedImage!, msg);
                                 } else {
                                   await send_message(msg, "message");
                                 }
                               }
-                              if (selectedImage != null) {
-                                await uploadImageBase64(selectedImage!);
-                              }
+
                               temp_msg = "";
                               selectedImage = null;
                               setState(() {});
@@ -907,7 +944,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                             Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
-                                chat["messages"][replyid]["sender_name"],
+                                your_name == chat["messages"][replyid]["sender_name"].toString().trim()?"You":chat["messages"][replyid]["sender_name"],
                                 // "Onkar",
                                 overflow: TextOverflow.ellipsis,
                                 style: GoogleFonts.exo2(
@@ -922,6 +959,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               child:
                                   chat["messages"][replyid]["msg"]
                                       .toString()
+                                      .split("rpy")
+                                      .last
                                       .contains(SECRET_MARKER)
                                   ? ClipRRect(
                                       borderRadius:
@@ -930,11 +969,16 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                         fit: BoxFit.contain,
                                         chat["messages"][replyid]["msg"]
                                             .toString()
-                                            .split(SECRET_MARKER)[1],
+                                            .split(SECRET_MARKER)[1]
+                                            .toString()
+                                            .split("cpn")[0],
                                       ),
                                     )
                                   : Text(
-                                      chat["messages"][replyid]["msg"],
+                                      chat["messages"][replyid]["msg"]
+                                          .toString()
+                                          .split("rpy")
+                                          .last,
                                       softWrap: true,
                                       style: GoogleFonts.josefinSans(),
                                     ),
@@ -1071,7 +1115,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
             }
             ;
             if (value == "Copy") {
-              Clipboard.setData(ClipboardData(text: msg[2]));
+              Clipboard.setData(ClipboardData(text: msg.last));
             }
             if (value == "reply") {
               isreplying = true;
@@ -1112,7 +1156,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  msg[0],
+                                  your_name == msg[0].trim()?"You":msg[0],
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.exo2(
                                     // color: const Color.fromARGB(255, 2, 194, 174),
@@ -1142,8 +1186,14 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                                     child: Image.network(
                                                       filterQuality:
                                                           FilterQuality.high,
-                                                      
-                                                         (msg[1].toString().split(SECRET_MARKER)[1].trim())
+                                                      (msg[1]
+                                                          .toString()
+                                                          .split(
+                                                            SECRET_MARKER,
+                                                          )[1]
+                                                          .trim()
+                                                          .toString()
+                                                          .split("cpn")[0]),
                                                     ),
                                                   ),
                                                 ),
@@ -1158,7 +1208,9 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                             msg[1]
                                                 .toString()
                                                 .split(SECRET_MARKER)[1]
-                                                .trim(),
+                                                .trim()
+                                                .toString()
+                                                .split("cpn")[0],
                                           ),
                                         ),
                                       )
@@ -1353,7 +1405,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  msg[0],
+                                  your_name == msg[0].trim()?"You":msg[0],
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.exo2(
                                     // color: const Color.fromARGB(255, 2, 194, 174),
@@ -1364,11 +1416,59 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                               ),
                               Align(
                                 alignment: Alignment.centerLeft,
-                                child: Text(
-                                  msg[1],
-                                  softWrap: true,
-                                  style: GoogleFonts.josefinSans(),
-                                ),
+                                child: msg[1].contains(SECRET_MARKER)
+                                    ? GestureDetector(
+                                        onTap: () {
+                                          HapticFeedback.selectionClick();
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              return Dialog(
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadiusGeometry.circular(
+                                                        20,
+                                                      ),
+                                                  child: InteractiveViewer(
+                                                    minScale: 1,
+                                                    maxScale: 5,
+                                                    child: Image.network(
+                                                      filterQuality:
+                                                          FilterQuality.high,
+                                                      (msg[1]
+                                                          .toString()
+                                                          .split(
+                                                            SECRET_MARKER,
+                                                          )[1]
+                                                          .trim()
+                                                          .toString()
+                                                          .split("cpn")
+                                                          .first),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          );
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadiusGeometry.circular(10),
+                                          child: Image.network(
+                                            msg[1]
+                                                .toString()
+                                                .split(SECRET_MARKER)[1]
+                                                .trim()
+                                                .toString()
+                                                .split("cpn")[0],
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        msg[1],
+                                        softWrap: true,
+                                        style: GoogleFonts.josefinSans(),
+                                      ),
                               ),
                             ],
                           ),
@@ -1464,7 +1564,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   maxScale: 5,
                   child: Image.network(
                     filterQuality: FilterQuality.high,
-                    chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                    chat["messages"][no]["msg"].split(SECRET_MARKER)[1].toString()
+                          .split("cpn")[0],
                   ),
                 ),
               ),
@@ -1473,7 +1574,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         );
       },
       onLongPressStart: (details) {
-        HapticFeedback.lightImpact();
+        HapticFeedback.heavyImpact();
         showMenu(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadiusGeometry.circular(20),
@@ -1546,7 +1647,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           }
           if (value == "save_img") {
             await saveImageToGallery(
-              chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+              chat["messages"][no]["msg"]
+                  .split(SECRET_MARKER)[1]
+                  .toString()
+                  .split("cpn")[0],
             );
             print("img saved");
           }
@@ -1559,27 +1663,29 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10.0, right: 12, left: 100),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Color.fromARGB(255, 130, 158, 190),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(15),
-                  bottomRight: Radius.circular(15),
-                  topLeft: Radius.circular(15),
-                ),
-              ),
-              child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Color.fromARGB(255, 130, 158, 190),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(15),
+              bottomRight: Radius.circular(15),
+              topLeft: Radius.circular(15),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
                 padding: const EdgeInsets.all(4.0),
                 child: ClipRRect(
                   borderRadius: BorderRadiusGeometry.circular(12),
                   child: RepaintBoundary(
                     child: CachedNetworkImage(
                       filterQuality: FilterQuality.high,
-                      imageUrl: chat["messages"][no]["msg"].split(
-                        SECRET_MARKER,
-                      )[1],
+                      imageUrl: chat["messages"][no]["msg"]
+                          .split(SECRET_MARKER)[1]
+                          .toString()
+                          .split("cpn")[0],
                       fit: BoxFit.cover,
 
                       placeholder: (context, url) => const Center(
@@ -1607,28 +1713,59 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              right: 10,
-              bottom: 10,
-              child: Text(
-                textAlign: TextAlign.end,
-                "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 12,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      offset: Offset(2, 2), // X and Y position
-                      blurRadius: 4, // Softness
-                      color: Colors.black, // Shadow color
+              (chat["messages"][no]["msg"]
+                              .split(SECRET_MARKER)[1]
+                              .toString()
+                              .split("cpn")
+                              .last ==
+                          null ||
+                      chat["messages"][no]["msg"]
+                          .split(SECRET_MARKER)[1]
+                          .toString()
+                          .split("cpn")
+                          .last
+                          .contains("https"))
+                  ? SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(
+                        left: 6.0,
+                        top: 2,
+                        right: 4,
+                      ),
+                      child: Text(
+                        textAlign: TextAlign.start,
+                        chat["messages"][no]["msg"]
+                            .split(SECRET_MARKER)[1]
+                            .toString()
+                            .split("cpn")
+                            .last,
+                        style: GoogleFonts.josefinSans(color: Colors.black),
+                      ),
                     ),
-                  ],
-                  fontWeight: FontWeight.w600,
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 4),
+                  child: Text(
+                    textAlign: TextAlign.start,
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 10,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2, 2), // X and Y position
+                          blurRadius: 4, // Softness
+                          color: Colors.black, // Shadow color
+                        ),
+                      ],
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1674,7 +1811,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   minScale: 1,
                   maxScale: 5,
                   child: Image.network(
-                    chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                    chat["messages"][no]["msg"]
+                        .split(SECRET_MARKER)[1]
+                        .toString()
+                        .split("cpn")[0],
                   ),
                 ),
               ),
@@ -1718,7 +1858,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               child: Row(
                 children: [
                   Icon(
-                    Icons.delete,
+                    Icons.reply_rounded,
                     color: const Color.fromARGB(255, 255, 255, 255),
                   ),
                   SizedBox(width: 10),
@@ -1757,11 +1897,18 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           }
           if (value == "save_img") {
             await saveImageToGallery(
-              chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+              chat["messages"][no]["msg"]
+                  .split(SECRET_MARKER)[1]
+                  .toString()
+                  .split("cpn")[0]
+                  .trim()
+                  .toString()
+                  .split("cpn")[0],
             );
             print("saved");
           }
           if (value == "reply") {
+            isreplying = true;
             replyid = no;
             setState(() {});
           }
@@ -1769,26 +1916,29 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
       },
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10.0, left: 12, right: 100),
-        child: Stack(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                color: Color.fromARGB(255, 109, 168, 174),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(15),
-                  bottomRight: Radius.circular(15),
-                  topRight: Radius.circular(15),
-                ),
-              ),
-              child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            color: Color.fromARGB(255, 109, 168, 174),
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(15),
+              bottomRight: Radius.circular(15),
+              topRight: Radius.circular(15),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
                 padding: const EdgeInsets.all(4.0),
                 child: ClipRRect(
                   borderRadius: BorderRadiusGeometry.circular(12),
                   child: RepaintBoundary(
                     child: CachedNetworkImage(
-                      imageUrl: chat["messages"][no]["msg"].split(
-                        SECRET_MARKER,
-                      )[1],
+                      imageUrl: chat["messages"][no]["msg"]
+                          .split(SECRET_MARKER)[1]
+                          .toString()
+                          .split("cpn")[0]
+                          .trim(),
                       fit: BoxFit.cover,
 
                       placeholder: (context, url) => const Center(
@@ -1815,28 +1965,60 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   ),
                 ),
               ),
-            ),
-            Positioned(
-              left: 10,
-              bottom: 10,
-              child: Text(
-                textAlign: TextAlign.end,
-                "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 12,
-                  color: Colors.white,
-                  shadows: [
-                    Shadow(
-                      offset: Offset(2, 2), // X and Y position
-                      blurRadius: 4, // Softness
-                      color: Colors.black, // Shadow color
+
+              (chat["messages"][no]["msg"]
+                              .split(SECRET_MARKER)[1]
+                              .toString()
+                              .split("cpn")
+                              .last ==
+                          null ||
+                      chat["messages"][no]["msg"]
+                          .split(SECRET_MARKER)[1]
+                          .toString()
+                          .split("cpn")
+                          .last
+                          .contains("https"))
+                  ? SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(
+                        left: 6.0,
+                        top: 2,
+                        right: 4,
+                      ),
+                      child: Text(
+                        textAlign: TextAlign.start,
+                        chat["messages"][no]["msg"]
+                            .split(SECRET_MARKER)[1]
+                            .toString()
+                            .split("cpn")
+                            .last,
+                        style: GoogleFonts.josefinSans(color: Colors.black),
+                      ),
                     ),
-                  ],
-                  fontWeight: FontWeight.w600,
+              Align(
+                alignment: Alignment.bottomLeft,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8.0, bottom: 4),
+                  child: Text(
+                    textAlign: TextAlign.start,
+                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                    style: GoogleFonts.spaceGrotesk(
+                      fontSize: 10,
+                      color: Colors.white,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(2, 2), // X and Y position
+                          blurRadius: 4, // Softness
+                          color: Colors.black, // Shadow color
+                        ),
+                      ],
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1856,13 +2038,13 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   }
 
   //// upload image to database //////
-  Future<void> uploadImageBase64(File imageFile) async {
+  Future<void> uploadImageBase64(File imageFile, String msg) async {
     final bytes = await imageFile.readAsBytes();
     final url = await chatApi.uploadImageBase64(base64Encode(bytes));
     print("\n");
     print("🚀url 📷${url}");
     print("\n");
-    await send_message("${SECRET_MARKER}${url}", "image");
+    await send_message("${SECRET_MARKER}${url}cpn${msg}", "image");
     setState(() {});
   }
 
@@ -2066,7 +2248,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 child: Row(
                   children: [
                     Icon(
-                      Icons.delete,
+                      Icons.reply_rounded,
                       color: const Color.fromARGB(255, 255, 255, 255),
                     ),
                     SizedBox(width: 10),
@@ -2190,7 +2372,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
         child: Align(
           alignment: Alignment.topRight,
           child: Container(
-            constraints: BoxConstraints(maxWidth: 270),
+            constraints: BoxConstraints(maxWidth: 270, maxHeight: 200),
             decoration: BoxDecoration(
               border: Border.all(color: const Color.fromARGB(0, 255, 255, 255)),
               borderRadius: BorderRadius.only(
@@ -2208,11 +2390,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                 left: 7,
                 right: 7,
               ),
-              child: Text(
-                temp_msg,
-                style: TextStyle(
-                  fontFamily: "Comic Sans MS",
-                  color: Colors.black,
+              child: SingleChildScrollView(
+                physics: BouncingScrollPhysics(),
+                child: Text(
+                  temp_msg,
+                  style: GoogleFonts.josefinSans(color: Colors.black),
                 ),
               ),
             ),

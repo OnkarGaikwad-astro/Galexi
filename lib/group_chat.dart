@@ -6,7 +6,8 @@ import 'package:Aera/add_contact.dart' hide isdark;
 import 'package:Aera/chatbot_page.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
-import 'package:Aera/main.dart';
+import 'package:Aera/home_page.dart';
+import 'package:Aera/main.dart' hide isdark;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +29,7 @@ bool Isdark = true;
 bool noti = false;
 late RealtimeChannel presenceChannel;
 bool isOnline = false;
+int replyid = -1;
 
 class GroupChat extends StatefulWidget {
   final dynamic ID;
@@ -42,10 +44,13 @@ String sender_last_seen = "";
 String SECRET_MARKER = '\u{E000}';
 bool msg_sent = true;
 String temp_msg = "";
+String your_name = "";
 
 class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   late RealtimeChannel typingChannel;
   late RealtimeChannel messageChannel;
+
+  bool isreplying = false;
 
   @override
   ///// fetch chat /////
@@ -93,9 +98,9 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   }
 
   ///////   send message   ////
-  Future<void> send_message(String msg) async {
+  Future<void> send_message(String msg, String type) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessagegrp(email!, widget.ID, msg,false);
+    await chatApi.addMessagegrp(email!, widget.ID, msg, type, false);
     print("📖📖📖📖📖📖📖 ");
     if (msg != "") playClick();
     await all_chats_list();
@@ -156,10 +161,18 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     setState(() {});
   }
 
+  Future<void> username() async {
+      final name = await FirebaseAuth.instance.currentUser!.displayName;
+      your_name = name!;
+      print(name);
+    setState(() {});
+  }
+
   /// init state  ////
   @override
   void initState() {
     noti = true;
+    username();
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     Future.microtask(() async {
@@ -605,65 +618,95 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                         int realIndex = (chat["message_count"] - 1) - index;
                         if (chat["messages"][realIndex]["msg"] == "")
                           return SizedBox.shrink();
+
                         return chat["messages"][realIndex]["user_sent"] == "no"
                             ? (chat["messages"][realIndex]["msg"].contains(
                                     SECRET_MARKER,
                                   )
-                                  ? received_image_base(realIndex)
-                                  : recieved_msg(realIndex))
+                                  ? (chat["messages"][realIndex]["type"] ==
+                                            "reply")
+                                        ? receivedreply(realIndex)
+                                        : received_image_base(realIndex)
+                                  : (chat["messages"][realIndex]["type"] ==
+                                        "message")
+                                  ? recieved_msg(realIndex)
+                                  : receivedreply(realIndex))
                             : (chat["messages"][realIndex]["msg"].contains(
                                     SECRET_MARKER,
                                   )
-                                  ? sent_image_base(realIndex)
-                                  : sended_msg(realIndex));
+                                  ? (chat["messages"][realIndex]["type"] ==
+                                            "reply")
+                                        ? sendedreply(realIndex)
+                                        : sent_image_base(realIndex)
+                                  : (chat["messages"][realIndex]["type"] ==
+                                        "message")
+                                  ? sended_msg(realIndex)
+                                  : sendedreply(realIndex));
                       },
                     ),
                   ),
-                  !msg_sent
-                      ? (temp_msg != "" ? temp_sended_msg() : SizedBox.shrink())
-                      : SizedBox.shrink(),
                   typing_indi(),
-
-                  if (selectedImage != null)
-                    Align(
-                      alignment: AlignmentGeometry.centerRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 12, right: 10),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                            color: Isdark ? kTextPrimary : Colors.black,
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadiusGeometry.circular(
-                                    10,
-                                  ),
-                                  child: Image.file(selectedImage!, height: 70),
+                  SizedBox(height: 65),
+                ],
+              ),
+              if (selectedImage != null)
+                Positioned(
+                  bottom: 55,
+                  left: 10,
+                  child: Align(
+                    alignment: AlignmentGeometry.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12, right: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          color: Isdark ? kTextPrimary : Colors.black,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2.0),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadiusGeometry.circular(10),
+                                child: Image.file(selectedImage!, height: 70),
+                              ),
+                              Positioned(
+                                right: -17,
+                                bottom: 40,
+                                child: IconButton(
+                                  icon: Icon(Icons.close),
+                                  color: Colors.white,
+                                  onPressed: () {
+                                    setState(() => selectedImage = null);
+                                  },
                                 ),
-                                Positioned(
-                                  right: -17,
-                                  bottom: 40,
-                                  child: IconButton(
-                                    icon: Icon(Icons.close),
-                                    color: Colors.white,
-                                    onPressed: () {
-                                      setState(() => selectedImage = null);
-                                    },
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                     ),
-                  SizedBox(height: 65),
-                ],
-              ),
+                  ),
+                ),
+              if (isreplying && replyid != -1)
+                Positioned(
+                  bottom: 60,
+                  left: 0,
+                  right: 0,
+                  // height: 50,
+                  child: replyingwid(),
+                ),
+              (!msg_sent && !isreplying)
+                  ? (temp_msg != ""
+                        ? Positioned(
+                            bottom: 60,
+                            left: 0,
+                            right: 0,
+                            child: temp_sended_msg(),
+                          )
+                        : SizedBox.shrink())
+                  : SizedBox.shrink(),
+
               Positioned(
                 bottom: 15,
                 left: 0,
@@ -694,30 +737,58 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                   }
                                   setState(() {});
                                 },
+                                style: GoogleFonts.josefinSans(
+                                  color: Colors.black,
+                                ),
                                 onSubmitted: (value) async {
                                   HapticFeedback.selectionClick();
+
                                   msg_sent = false;
+
                                   setState(() {});
+
                                   final msg = type_msg.text;
+
                                   type_msg.text = "";
-                                  if(msg.contains("@Aurex")){
-                                    gemini(msg);
+
+                                  if (msg.contains("@Aurex")) {
+                                    if (isreplying && replyid != -1) {
+                                      gemini(
+                                        "{ ${chat["messages"][replyid]["msg"].toString().split("rpy").last} } in the curly bracket all text is from another person and i was replying it so based on that text answer me following question dont give other information" +
+                                            msg,
+                                      );
+                                    } else {
+                                      gemini(msg);
+                                    }
                                   }
-                                  await send_message(msg);
+
+                                  if (isreplying) {
+                                    if (replyid != -1)
+                                      await send_message(
+                                        "${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"].toString().split("rpy").last} rpy ${msg}",
+                                        "reply",
+                                      );
+                                    isreplying = false;
+                                  } else {
+                                    await send_message(msg, "message");
+                                  }
                                   temp_msg = "";
                                 },
                                 controller: type_msg,
                                 cursorColor: Colors.teal,
                                 decoration: InputDecoration(
                                   isDense: true,
-                                  suffixIcon: IconButton(icon: Icon(Icons.alternate_email_rounded),color:Colors.black,iconSize: 23,onPressed: () {
-                                   type_msg.text = "@Aurex ";
-                                },),
+                                  suffixIcon: IconButton(
+                                    icon: Icon(Icons.alternate_email_rounded),
+                                    color: Colors.black,
+                                    iconSize: 23,
+                                    onPressed: () {
+                                      type_msg.text = "@Aurex ";
+                                    },
+                                  ),
                                   prefixIcon: IconButton(
-                                    icon: Icon(
-                                      Icons.wallpaper_rounded,
-                                    ),
-                                    color:Colors.black,
+                                    icon: Icon(Icons.wallpaper_rounded),
+                                    color: Colors.black,
                                     iconSize: 23,
                                     onPressed: () async {
                                       HapticFeedback.selectionClick();
@@ -740,32 +811,42 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                       style: GoogleFonts.josefinSans(
                                         letterSpacing: 1.5,
                                         fontSize: 13,
-                                        color: Colors.black
+                                        color: Colors.black,
                                       ),
                                     ),
                                   ),
                                   filled: true,
-                                  fillColor: const Color.fromARGB(189, 143, 167, 200),
-                                   disabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  // borderSide: BorderSide(
-                                  //   color: (Isdark
-                                  //       ? const Color.fromARGB(255, 255, 255, 255)
-                                  //       : Colors.black),
-                                  // ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  // borderSide: BorderSide(
-                                  //   color: (Isdark ? Colors.white : Colors.black),
-                                  // ),
-                                ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: const Color.fromARGB(0, 255, 255, 255)
+                                  fillColor: const Color.fromARGB(
+                                    189,
+                                    143,
+                                    167,
+                                    200,
                                   ),
-                                ),
+                                  disabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    // borderSide: BorderSide(
+                                    //   color: (Isdark
+                                    //       ? const Color.fromARGB(255, 255, 255, 255)
+                                    //       : Colors.black),
+                                    // ),
+                                  ),
+                                  focusedBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    // borderSide: BorderSide(
+                                    //   color: (Isdark ? Colors.white : Colors.black),
+                                    // ),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                    borderSide: BorderSide(
+                                      color: const Color.fromARGB(
+                                        0,
+                                        255,
+                                        255,
+                                        255,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
@@ -785,20 +866,45 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                 setState(() {});
                                 final msg = type_msg.text;
                                 type_msg.text = "";
-                                if(msg.contains("@Aurex")){
+                                if (msg.contains("@Aurex")) {
+                                  if (isreplying && replyid != -1) {
+                                    gemini(
+                                      "{ ${chat["messages"][replyid]["msg"].toString().split("rpy").last} } in the curly bracket all text is from another person and i was replying it so based on that text answer me following question dont give other information" +
+                                          msg,
+                                    );
+                                  } else {
                                     gemini(msg);
                                   }
+                                }
                                 if (msg != "") {
-                                  await send_message(msg);
+                                  if (isreplying) {
+                                    if (replyid != -1)
+                                      await send_message(
+                                        "${chat["messages"][replyid]["sender_name"]} rpy ${chat["messages"][replyid]["msg"].toString().split("rpy").last} rpy ${msg}",
+                                        "reply",
+                                      );
+                                    isreplying = false;
+                                    setState(() {});
+                                    print("object 1");
+                                  } else if (selectedImage != null) {
+                                    await uploadImageBase64(
+                                      selectedImage!,
+                                      msg,
+                                    );
+                                  } else {
+                                    await send_message(msg, "message");
+                                  }
                                 }
-                                if (selectedImage != null) {
-                                  await uploadImageBase64(selectedImage!);
-                                }
+
                                 temp_msg = "";
                                 selectedImage = null;
                                 setState(() {});
                               },
-                              icon: Icon(Icons.send_rounded, size: 25,color: Colors.white,),
+                              icon: Icon(
+                                Icons.send_rounded,
+                                size: 25,
+                                color: Colors.white,
+                              ),
                             ),
                           ),
                         ],
@@ -832,6 +938,680 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     setState(() {});
   }
 
+  ///////   sended reply   /////
+
+  Widget sendedreply(no) {
+    final msg = chat["messages"][no]["msg"].toString().split("rpy");
+    return Align(
+      alignment: AlignmentGeometry.centerRight,
+      child: GestureDetector(
+        onLongPressStart: (details) {
+          HapticFeedback.selectionClick();
+          showMenu(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadiusGeometry.circular(20),
+            ),
+            popUpAnimationStyle: AnimationStyle(
+              duration: Duration(milliseconds: 200),
+              reverseDuration: Duration(milliseconds: 100),
+            ),
+            shadowColor: kAccentVariant,
+            elevation: 100,
+            context: context,
+            position: RelativeRect.fromLTRB(
+              details.globalPosition.dx,
+              details.globalPosition.dy,
+              0,
+              0,
+            ),
+            menuPadding: EdgeInsets.all(2),
+            items: [
+              PopupMenuItem(
+                value: "delete",
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, color: Colors.red),
+                    SizedBox(width: 10),
+                    Text("Delete"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: "reply",
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete,
+                      color: const Color.fromARGB(255, 255, 255, 255),
+                    ),
+                    SizedBox(width: 10),
+                    Text("Reply"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: "Copy",
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.content_copy_outlined,
+                      color: const Color.fromARGB(255, 8, 242, 219),
+                    ),
+                    SizedBox(width: 10),
+                    Text("Copy Text"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                child: Row(
+                  children: [
+                    SizedBox(width: 30),
+                    Text(
+                      "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
+                      style: TextStyle(
+                        color: Colors.blueGrey,
+                        fontFamily: "times new roman",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ).then((value) {
+            if (value == "delete") {
+              delete_msg(chat["messages"][no]["conversation_id"]);
+            }
+            ;
+            if (value == "Copy") {
+              Clipboard.setData(ClipboardData(text: msg.last));
+            }
+            if (value == "reply") {
+              isreplying = true;
+              replyid = no;
+              setState(() {});
+            }
+            ;
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12, right: 10),
+          child: Container(
+            constraints: BoxConstraints(maxWidth: 270),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              // color: Color(0xFF5BB9A8),
+              color: Color.fromARGB(255, 130, 158, 190),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
+              child: IntrinsicWidth(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        color: kDivider,
+                      ),
+                      constraints: BoxConstraints(maxHeight: 105),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  your_name == msg[0].trim() ? "You" : msg[0],
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.exo2(
+                                    // color: const Color.fromARGB(255, 2, 194, 174),
+                                    color: kTextSecondary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: msg[1].contains(SECRET_MARKER)
+                                    ? GestureDetector(
+                                        onTap: () {
+                                          HapticFeedback.selectionClick();
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) {
+                                              return Dialog(
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadiusGeometry.circular(
+                                                        20,
+                                                      ),
+                                                  child: InteractiveViewer(
+                                                    minScale: 1,
+                                                    maxScale: 5,
+                                                    child: Image.network(
+                                                      filterQuality:
+                                                          FilterQuality.high,
+                                                      (msg[1]
+                                                          .toString()
+                                                          .split(
+                                                            SECRET_MARKER,
+                                                          )[1]
+                                                          .trim()
+                                                          .toString()
+                                                          .split("cpn")[0]),
+                                                    ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          );
+                                        },
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadiusGeometry.circular(10),
+                                          child: Image.network(
+                                            msg[1]
+                                                .toString()
+                                                .split(SECRET_MARKER)[1]
+                                                .trim()
+                                                .toString()
+                                                .split("cpn")[0],
+                                          ),
+                                        ),
+                                      )
+                                    : Text(
+                                        msg[1],
+                                        softWrap: true,
+                                        style: GoogleFonts.josefinSans(),
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    // SizedBox(height: 5),
+                    Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(3.0),
+                        child: Align(
+                          alignment: Alignment.topLeft,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(maxHeight: 150),
+                            child: SingleChildScrollView(
+                              child: Text(
+                                msg[2],
+                                style: GoogleFonts.josefinSans(
+                                  color: Colors.black,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: Text(
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.left,
+                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 10,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(2, 2), // X and Y position
+                              blurRadius: 4, // Softness
+                              color: Colors.black, // Shadow color
+                            ),
+                          ],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  //////  replying widget  //////
+  Widget replyingwid() {
+    return Align(
+      alignment: AlignmentGeometry.centerRight,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 12, right: 10),
+        child: Container(
+          constraints: BoxConstraints(maxWidth: 270),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            // color: Color(0xFF5BB9A8),
+            color: kTextHint,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
+            child: Column(
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        color: kDivider,
+                      ),
+                      constraints: BoxConstraints(maxHeight: 105),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                your_name ==
+                                        chat["messages"][replyid]["sender_name"]
+                                    ? "You"
+                                    : chat["messages"][replyid]["sender_name"],
+                                // "Onkar",
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.exo2(
+                                  // color: const Color.fromARGB(255, 2, 194, 174),
+                                  color: kTextSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child:
+                                  chat["messages"][replyid]["msg"]
+                                      .toString()
+                                      .split("rpy")
+                                      .last
+                                      .contains(SECRET_MARKER)
+                                  ? ClipRRect(
+                                      borderRadius:
+                                          BorderRadiusGeometry.circular(15),
+                                      child: Image.network(
+                                        fit: BoxFit.contain,
+                                        chat["messages"][replyid]["msg"]
+                                            .toString()
+                                            .split(SECRET_MARKER)[1]
+                                            .toString()
+                                            .split("cpn")[0],
+                                      ),
+                                    )
+                                  : Text(
+                                      chat["messages"][replyid]["msg"]
+                                          .toString()
+                                          .split("rpy")
+                                          .last,
+                                      softWrap: true,
+                                      style: GoogleFonts.josefinSans(),
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      right: -10,
+                      top: -10,
+                      child: IconButton(
+                        onPressed: () {
+                          isreplying = false;
+                          setState(() {});
+                        },
+                        icon: Icon(Icons.close_rounded, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                // SizedBox(height: 5),
+                Container(
+                  // constraints: BoxConstraints(maxHeight: 150),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(3.0),
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxHeight: 150),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            temp_msg,
+                            style: GoogleFonts.josefinSans(color: Colors.black),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  ///////  received reply   ///
+
+  Widget receivedreply(no) {
+    final msg = chat["messages"][no]["msg"].toString().split("rpy");
+    return Align(
+      alignment: AlignmentGeometry.centerLeft,
+      child: GestureDetector(
+        onLongPressStart: (details) {
+          HapticFeedback.selectionClick();
+          showMenu(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadiusGeometry.circular(20),
+            ),
+            popUpAnimationStyle: AnimationStyle(
+              duration: Duration(milliseconds: 200),
+              reverseDuration: Duration(milliseconds: 100),
+            ),
+            shadowColor: kAccentVariant,
+            elevation: 100,
+            context: context,
+            position: RelativeRect.fromLTRB(
+              details.globalPosition.dx,
+              details.globalPosition.dy,
+              0,
+              0,
+            ),
+            menuPadding: EdgeInsets.all(2),
+            items: [
+              PopupMenuItem(
+                value: "delete",
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, color: Colors.red),
+                    SizedBox(width: 10),
+                    Text("Delete"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: "reply",
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.delete,
+                      color: const Color.fromARGB(255, 255, 255, 255),
+                    ),
+                    SizedBox(width: 10),
+                    Text("Reply"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: "Copy",
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.content_copy_outlined,
+                      color: const Color.fromARGB(255, 8, 242, 219),
+                    ),
+                    SizedBox(width: 10),
+                    Text("Copy Text"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                child: Row(
+                  children: [
+                    SizedBox(width: 30),
+                    Text(
+                      "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]} \n ${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0]} ",
+                      style: TextStyle(
+                        color: Colors.blueGrey,
+                        fontFamily: "times new roman",
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ).then((value) {
+            if (value == "delete") {
+              delete_msg(chat["messages"][no]["conversation_id"]);
+            }
+            ;
+            if (value == "Copy") {
+              Clipboard.setData(ClipboardData(text: msg[2]));
+            }
+            if (value == "reply") {
+              isreplying = true;
+              replyid = no;
+              setState(() {});
+            }
+            ;
+          });
+        },
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 12, left: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadiusGeometry.circular(5),
+                      child: Container(
+                        height: 20,
+                        width: 20,
+                        child: Image.network(
+                          chat["messages"][no]["sender_prof_pic"] ??
+                              "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/1771249136595.jpg",
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Text(
+                      your_name ==
+                              chat["messages"][no]["sender_name"]
+                                  .toString()
+                                  .split(" ")[0]
+                          ? "You"
+                          : chat["messages"][no]["sender_name"]
+                                .toString()
+                                .split(" ")[0],
+                      style: GoogleFonts.josefinSans(
+                        fontSize: 9,
+                        color: isdark
+                            ? const Color.fromARGB(255, 173, 200, 238)
+                            : kBackground,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 2),
+              Container(
+                constraints: BoxConstraints(maxWidth: 270),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  // color: Color(0xFF5BB9A8),
+                  color: Color.fromARGB(255, 109, 168, 174),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4.0,
+                    vertical: 4,
+                  ),
+                  child: IntrinsicWidth(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                            color: kDivider,
+                          ),
+                          constraints: BoxConstraints(maxHeight: 105),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: SingleChildScrollView(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      msg[0],
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.exo2(
+                                        // color: const Color.fromARGB(255, 2, 194, 174),
+                                        color: kTextSecondary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: msg[1].contains(SECRET_MARKER)
+                                        ? GestureDetector(
+                                            onTap: () {
+                                              HapticFeedback.selectionClick();
+                                              showDialog(
+                                                context: context,
+                                                builder: (context) {
+                                                  return Dialog(
+                                                    child: ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadiusGeometry.circular(
+                                                            20,
+                                                          ),
+                                                      child: InteractiveViewer(
+                                                        minScale: 1,
+                                                        maxScale: 5,
+                                                        child: Image.network(
+                                                          filterQuality:
+                                                              FilterQuality
+                                                                  .high,
+                                                          (msg[1]
+                                                              .toString()
+                                                              .split(
+                                                                SECRET_MARKER,
+                                                              )[1]
+                                                              .trim()
+                                                              .toString()
+                                                              .split("cpn")
+                                                              .first),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              );
+                                            },
+                                            child: ClipRRect(
+                                              borderRadius:
+                                                  BorderRadiusGeometry.circular(
+                                                    10,
+                                                  ),
+                                              child: Image.network(
+                                                msg[1]
+                                                    .toString()
+                                                    .split(SECRET_MARKER)[1]
+                                                    .trim()
+                                                    .toString()
+                                                    .split("cpn")[0],
+                                              ),
+                                            ),
+                                          )
+                                        : Text(
+                                            msg[1],
+                                            softWrap: true,
+                                            style: GoogleFonts.josefinSans(),
+                                          ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        // SizedBox(height: 5),
+                        Container(
+                          // constraints: BoxConstraints(maxHeight: 150),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(3.0),
+                            child: Align(
+                              alignment: Alignment.topLeft,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(maxHeight: 150),
+                                child: SingleChildScrollView(
+                                  child: Text(
+                                    msg[2],
+                                    style: GoogleFonts.josefinSans(
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Align(
+                          alignment: Alignment.topLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 4.0),
+                            child: Text(
+                              softWrap: true,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.left,
+                              "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                              style: GoogleFonts.spaceGrotesk(
+                                fontSize: 10,
+                                color: Colors.white,
+                                shadows: [
+                                  Shadow(
+                                    offset: Offset(2, 2), // X and Y position
+                                    blurRadius: 4, // Softness
+                                    color: Colors.black, // Shadow color
+                                  ),
+                                ],
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget sent_image_base(int no) {
     bool imageloaded = false;
     return GestureDetector(
@@ -848,7 +1628,10 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                   maxScale: 5,
                   child: Image.network(
                     filterQuality: FilterQuality.high,
-                    chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                    chat["messages"][no]["msg"]
+                        .split(SECRET_MARKER)[1]
+                        .toString()
+                        .split("cpn")[0],
                   ),
                 ),
               ),
@@ -857,7 +1640,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
         );
       },
       onLongPressStart: (details) {
-        HapticFeedback.lightImpact();
+        HapticFeedback.heavyImpact();
         showMenu(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadiusGeometry.circular(20),
@@ -884,6 +1667,17 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                   Icon(Icons.delete, color: Colors.red),
                   SizedBox(width: 10),
                   Text("Delete"),
+                ],
+              ),
+            ),
+
+            PopupMenuItem(
+              value: "reply",
+              child: Row(
+                children: [
+                  Icon(Icons.reply_rounded, color: Colors.white),
+                  SizedBox(width: 10),
+                  Text("Reply"),
                 ],
               ),
             ),
@@ -919,9 +1713,17 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
           }
           if (value == "save_img") {
             await saveImageToGallery(
-              chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+              chat["messages"][no]["msg"]
+                  .split(SECRET_MARKER)[1]
+                  .toString()
+                  .split("cpn")[0],
             );
             print("img saved");
+          }
+          if (value == "reply") {
+            isreplying = true;
+            replyid = no;
+            setState(() {});
           }
         });
       },
@@ -936,18 +1738,20 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
               topLeft: Radius.circular(15),
             ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(4.0),
-            child: Stack(
-              children: [
-                ClipRRect(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(4.0),
+                child: ClipRRect(
                   borderRadius: BorderRadiusGeometry.circular(12),
                   child: RepaintBoundary(
                     child: CachedNetworkImage(
                       filterQuality: FilterQuality.high,
-                      imageUrl: chat["messages"][no]["msg"].split(
-                        SECRET_MARKER,
-                      )[1],
+                      imageUrl: chat["messages"][no]["msg"]
+                          .split(SECRET_MARKER)[1]
+                          .toString()
+                          .split("cpn")[0],
                       fit: BoxFit.cover,
 
                       placeholder: (context, url) => const Center(
@@ -974,14 +1778,45 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                     ),
                   ),
                 ),
-                Positioned(
-                  right: 10,
-                  bottom: 10,
+              ),
+              (chat["messages"][no]["msg"]
+                              .split(SECRET_MARKER)[1]
+                              .toString()
+                              .split("cpn")
+                              .last ==
+                          null ||
+                      chat["messages"][no]["msg"]
+                          .split(SECRET_MARKER)[1]
+                          .toString()
+                          .split("cpn")
+                          .last
+                          .contains("https"))
+                  ? SizedBox.shrink()
+                  : Padding(
+                      padding: const EdgeInsets.only(
+                        left: 6.0,
+                        top: 2,
+                        right: 4,
+                      ),
+                      child: Text(
+                        textAlign: TextAlign.start,
+                        chat["messages"][no]["msg"]
+                            .split(SECRET_MARKER)[1]
+                            .toString()
+                            .split("cpn")
+                            .last,
+                        style: GoogleFonts.josefinSans(color: Colors.black),
+                      ),
+                    ),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Padding(
+                  padding: const EdgeInsets.only(right: 8.0, bottom: 4),
                   child: Text(
-                    textAlign: TextAlign.end,
+                    textAlign: TextAlign.start,
                     "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
                     style: GoogleFonts.spaceGrotesk(
-                      fontSize: 12,
+                      fontSize: 10,
                       color: Colors.white,
                       shadows: [
                         Shadow(
@@ -990,12 +1825,12 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                           color: Colors.black, // Shadow color
                         ),
                       ],
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1042,7 +1877,10 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                   minScale: 1,
                   maxScale: 5,
                   child: Image.network(
-                    chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+                    chat["messages"][no]["msg"]
+                        .split(SECRET_MARKER)[1]
+                        .toString()
+                        .split("cpn")[0],
                   ),
                 ),
               ),
@@ -1082,6 +1920,19 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
               ),
             ),
             PopupMenuItem(
+              value: "reply",
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.reply_rounded,
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                  ),
+                  SizedBox(width: 10),
+                  Text("Reply"),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: "save_img",
               child: Row(
                 children: [
@@ -1112,9 +1963,17 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
           }
           if (value == "save_img") {
             await saveImageToGallery(
-              chat["messages"][no]["msg"].split(SECRET_MARKER)[1],
+              chat["messages"][no]["msg"]
+                  .split(SECRET_MARKER)[1]
+                  .toString()
+                  .split("cpn")[0],
             );
             print("saved");
+          }
+          if (value == "reply") {
+            isreplying = true;
+            replyid = no;
+            setState(() {});
           }
         });
       },
@@ -1133,7 +1992,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                       height: 20,
                       width: 20,
                       child: Image.network(
-                        chat["messages"][no]["sender_prof_pic"]??
+                        chat["messages"][no]["sender_prof_pic"] ??
                             "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/1771249136595.jpg",
                         fit: BoxFit.cover,
                       ),
@@ -1154,28 +2013,30 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
               ),
             ),
             SizedBox(height: 2),
-            Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Color.fromARGB(255, 109, 168, 174),
-                    borderRadius: BorderRadius.only(
-                      bottomLeft: Radius.circular(15),
-                      bottomRight: Radius.circular(15),
-                      topRight: Radius.circular(15),
-                    ),
-                  ),
-                  child: Padding(
+            Container(
+              decoration: BoxDecoration(
+                color: Color.fromARGB(255, 109, 168, 174),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(15),
+                  bottomRight: Radius.circular(15),
+                  topRight: Radius.circular(15),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: ClipRRect(
                       borderRadius: BorderRadiusGeometry.circular(12),
                       child: RepaintBoundary(
                         child: CachedNetworkImage(
-                          imageUrl: chat["messages"][no]["msg"].split(
-                            SECRET_MARKER,
-                          )[1],
+                          imageUrl: chat["messages"][no]["msg"]
+                              .split(SECRET_MARKER)[1]
+                              .toString()
+                              .split("cpn")[0]
+                              .trim(),
                           fit: BoxFit.cover,
-
                           placeholder: (context, url) => const Center(
                             child: SizedBox(
                               height: 20,
@@ -1200,28 +2061,59 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  left: 10,
-                  bottom: 10,
-                  child: Text(
-                    textAlign: TextAlign.end,
-                    "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                    style: GoogleFonts.spaceGrotesk(
-                      fontSize: 12,
-                      color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2), // X and Y position
-                          blurRadius: 4, // Softness
-                          color: Colors.black, // Shadow color
+                  (chat["messages"][no]["msg"]
+                                  .split(SECRET_MARKER)[1]
+                                  .toString()
+                                  .split("cpn")
+                                  .last ==
+                              null ||
+                          chat["messages"][no]["msg"]
+                              .split(SECRET_MARKER)[1]
+                              .toString()
+                              .split("cpn")
+                              .last
+                              .contains("https"))
+                      ? SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(
+                            left: 6.0,
+                            top: 2,
+                            right: 4,
+                          ),
+                          child: Text(
+                            textAlign: TextAlign.start,
+                            chat["messages"][no]["msg"]
+                                .split(SECRET_MARKER)[1]
+                                .toString()
+                                .split("cpn")
+                                .last,
+                            style: GoogleFonts.josefinSans(color: Colors.black),
+                          ),
                         ),
-                      ],
-                      fontWeight: FontWeight.w600,
+                  Align(
+                    alignment: Alignment.bottomLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8.0, bottom: 4),
+                      child: Text(
+                        textAlign: TextAlign.start,
+                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 10,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(2, 2), // X and Y position
+                              blurRadius: 4, // Softness
+                              color: Colors.black, // Shadow color
+                            ),
+                          ],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ],
         ),
@@ -1243,13 +2135,13 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   }
 
   //// upload image to database //////
-  Future<void> uploadImageBase64(File imageFile) async {
+  Future<void> uploadImageBase64(File imageFile, String msg) async {
     final bytes = await imageFile.readAsBytes();
     final url = await chatApi.uploadImageBase64(base64Encode(bytes));
     print("\n");
     print("🚀url 📷${url}");
     print("\n");
-    await send_message("${SECRET_MARKER}${url}");
+    await send_message("${SECRET_MARKER}${url}cpn${msg}", "image");
     setState(() {});
   }
 
@@ -1288,6 +2180,19 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
               ),
             ),
             PopupMenuItem(
+              value: "reply",
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.delete,
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                  ),
+                  SizedBox(width: 10),
+                  Text("Reply"),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: "Copy",
               child: Row(
                 children: [
@@ -1322,6 +2227,11 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
           ;
           if (value == "Copy") {
             Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
+          }
+          if (value == "reply") {
+            isreplying = true;
+            replyid = no;
+            setState(() {});
           }
         });
       },
@@ -1402,12 +2312,13 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 10,
                           color: Colors.white,
-                      shadows: [
-                        Shadow(
-                          offset: Offset(2, 2), // X and Y position
-                          blurRadius: 4, // Softness
-                          color: Colors.black, // Shadow color
-                        ),],
+                          shadows: [
+                            Shadow(
+                              offset: Offset(2, 2), // X and Y position
+                              blurRadius: 4, // Softness
+                              color: Colors.black, // Shadow color
+                            ),
+                          ],
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -1458,6 +2369,19 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
               ),
             ),
             PopupMenuItem(
+              value: "reply",
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.reply_rounded,
+                    color: const Color.fromARGB(255, 255, 255, 255),
+                  ),
+                  SizedBox(width: 10),
+                  Text("Reply"),
+                ],
+              ),
+            ),
+            PopupMenuItem(
               value: "Copy",
               child: Row(
                 children: [
@@ -1492,6 +2416,11 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
           ;
           if (value == "Copy") {
             Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
+          }
+          if (value == "reply") {
+            isreplying = true;
+            replyid = no;
+            setState(() {});
           }
           ;
         });
@@ -1533,14 +2462,15 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                     "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
                     style: GoogleFonts.spaceGrotesk(
                       fontSize: 10,
-                      
+
                       color: Colors.white,
                       shadows: [
                         Shadow(
                           offset: Offset(2, 2), // X and Y position
                           blurRadius: 4, // Softness
                           color: Colors.black, // Shadow color
-                        ),],
+                        ),
+                      ],
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -1621,7 +2551,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   }
 
   ///// typing indicator  /////
- Widget typing_indi() {
+  Widget typing_indi() {
     if (otherUserTyping) {
       return Padding(
         padding: const EdgeInsets.only(left: 12, right: 12, bottom: 10),
@@ -1677,65 +2607,65 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     await appKey.currentState?.user_contacts();
   }
 
-///////   chatbot   //////
-   
-Future<void> gemini(String prompt) async {
-  chatApi.fetch_api();
-  print("asking 🚀🚀");
-  String res = "Error";
-  for (String apiKey in api_keys.value) {
-    final url = Uri.parse(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey",
-    );
+  ///////   chatbot   //////
 
-    try {
-      final response = await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "contents": [
-            {
-              "parts": [
-                {
-                  "text":
-                      prompt +
-                      " imagine u as an ai build by astro and named Aurex of u and u are an commercial ai mode build for an app named aera, dont always mention all info about u just give answers which was asked and must have frendly tone dont give long info give just main info"
-                }
-              ]
-            }
-          ]
-        }),
+  Future<void> gemini(String prompt) async {
+    chatApi.fetch_api();
+    print("asking 🚀🚀");
+    String res = "Error";
+    for (String apiKey in api_keys.value) {
+      final url = Uri.parse(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey",
       );
 
-      print("Status: ${response.statusCode}");
+      try {
+        final response = await http.post(
+          url,
+          headers: {"Content-Type": "application/json"},
+          body: jsonEncode({
+            "contents": [
+              {
+                "parts": [
+                  {
+                    "text":
+                        prompt +
+                        " imagine u as an ai build by astro and named Aurex of u and u are an commercial ai mode build for an app named aera, dont always mention all info about u just give answers which was asked and must have frendly tone dont give long info give just main info",
+                  },
+                ],
+              },
+            ],
+          }),
+        );
 
-      if (response.statusCode == 200) {
-        res = jsonDecode(response.body)
-            ["candidates"][0]["content"]["parts"][0]["text"];
-        break;
-      }
-      if (response.statusCode == 429 ||
-          response.statusCode == 401 ||
-          response.statusCode == 403) {
-        print("Key failed, trying next...");
+        print("Status: ${response.statusCode}");
+
+        if (response.statusCode == 200) {
+          res = jsonDecode(
+            response.body,
+          )["candidates"][0]["content"]["parts"][0]["text"];
+          break;
+        }
+        if (response.statusCode == 429 ||
+            response.statusCode == 401 ||
+            response.statusCode == 403) {
+          print("Key failed, trying next...");
+          continue;
+        } else {
+          print("Other error: ${response.statusCode}");
+          break;
+        }
+      } catch (e) {
+        print("Exception: $e");
         continue;
-      } else {
-        print("Other error: ${response.statusCode}");
-        break;
       }
-
-    } catch (e) {
-      print("Exception: $e");
-      continue;
     }
+    send_response(res);
+    setState(() {});
   }
-  send_response(res);
-  setState(() {});
-}
 
   Future<void> send_response(String msg) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    await chatApi.addMessagegrp("Aurex AI",widget.ID, msg,true);
+    await chatApi.addMessagegrp("Aurex AI", widget.ID, msg, "message", true);
     // await all_chats_list();
     // user_contact();
     print("🚀🚀🚀🚀 response sent");

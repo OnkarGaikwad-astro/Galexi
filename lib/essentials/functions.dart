@@ -486,7 +486,9 @@ Future<void> fetch_api() async {
     String sender,
     String receiver,
     String msg,
-  ) async {
+    String type,
+    String sender_name
+      ) async {
     final chatId = buildChatId(sender, receiver);
     final members = ["chatbot",sender];   
     await _db.from('messages').insert({
@@ -494,6 +496,7 @@ Future<void> fetch_api() async {
       'sender_id': sender,
       'receiver_id': receiver,
       "members" : members,
+      "sender_name" : sender_name,
       'msg': msg,
     });}
 
@@ -503,6 +506,7 @@ Future<void> fetch_api() async {
     String sender,
     String chatId,
     String msg,
+    String type,
     bool bot
   ) async {
     final profpic = bot ? "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/ai.png" : FirebaseAuth.instance.currentUser!.photoURL;
@@ -514,6 +518,7 @@ Future<void> fetch_api() async {
       "sender_prof_pic" : profpic,
       'receiver_id': "",
       "sender_name":name,
+      "type":type,
       "members":members,
       'msg': msg,
     });
