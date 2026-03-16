@@ -17,13 +17,14 @@ class SupabaseChatApi {
   String _istNow() =>
       DateFormat('yyyy-MM-dd \n HH:mm:ss').format(DateTime.now());
 
-////   fetch aurex api key   /////
-Future<void> fetch_api() async {
-  final response = await _db.from("aurex_api").select("keys");
-  api_keys.value = List<String>.from(response.first["keys"]);
-  Hive.box("aurex_api").put("keys",List<String>.from(response.first["keys"]));
-}
-
+  ////   fetch aurex api key   /////
+  Future<void> fetch_api() async {
+    final response = await _db.from("aurex_api").select("keys");
+    api_keys.value = List<String>.from(response.first["keys"]);
+    Hive.box(
+      "aurex_api",
+    ).put("keys", List<String>.from(response.first["keys"]));
+  }
 
   ////  save user  ////
 
@@ -109,10 +110,13 @@ Future<void> fetch_api() async {
   }
 
   /////  update last message  ////
-  Future<void> updatelastmsg(String chatid,String msg) async {
+  Future<void> updatelastmsg(String chatid, String msg) async {
     await _db
         .from('user_contacts')
-        .update({'last_msg':msg })
+        .update({
+          'last_msg': msg,
+          "last_msg_time": DateTime.now().toUtc().toIso8601String(),
+        })
         .eq('chat_id', chatid);
   }
 
@@ -139,17 +143,21 @@ Future<void> fetch_api() async {
 
   /////  mark msg seen  ////
 
-  Future<String> markLastMsgSeen(String userId, String otherUser) async {
-    final res = await _db.rpc(
-      'mark_last_msg_seen',
-      params: {'p_user': userId, 'p_other': otherUser},
-    );
-
-    if (res == null || res == false) {
-      return 'no_messages_or_already_seen';
-    }
-
-    return 'last_message_marked_seen';
+  Future<void> markLastMsgSeen(String chatId) async {
+    print("start");
+    final user = await FirebaseAuth.instance.currentUser!.email!;
+    final data = await _db
+        .from('user_contacts')
+        .select('msg_seen')
+        .eq('chat_id', chatId)
+        .single();
+    Map<String, dynamic> members = Map<String, dynamic>.from(data['msg_seen']);
+    members[user] = true;
+    await Supabase.instance.client
+        .from('user_contacts')
+        .update({"msg_seen": jsonEncode(members)})
+        .eq("chat_id", chatId);
+    print("end");
   }
 
   /////  user status /////
@@ -163,11 +171,13 @@ Future<void> fetch_api() async {
     });
   }
 
-
   Future<bool> getuserpresence(String id) async {
-    final status = await Supabase.instance.client.from('user_presence').select(
-      'is_online').eq("user_id", id).maybeSingle();
-    return status?["is_online"]??false;
+    final status = await Supabase.instance.client
+        .from('user_presence')
+        .select('is_online')
+        .eq("user_id", id)
+        .maybeSingle();
+    return status?["is_online"] ?? false;
   }
 
   Future<void> setOffline() async {
@@ -308,12 +318,24 @@ Future<void> fetch_api() async {
     final manualRows = await _db
         .from('user_contacts')
         .select(
-          'user_1_id,user_2_id,chat_id,name,members,profile_pic,last_msg,group,last_msg_time',
+          'user_1_id,user_2_id,chat_id,name,members,profile_pic,last_msg,group,last_msg_time,msg_seen',
         )
         .or("user_1_id.eq.$userId,user_2_id.eq.$userId,members.cs.{${userId}}")
-        .order("last_msg_time",ascending: false);
+        .order("last_msg_time", ascending: false);
 
     final contactlst = manualRows.map<Map<String, dynamic>>((row) {
+
+
+      Map<String, dynamic> seenMap = {};
+      final rawSeen = row["msg_seen"];
+      if (rawSeen is Map) {
+        seenMap = Map<String, dynamic>.from(rawSeen);
+      } else if (rawSeen is String && rawSeen.isNotEmpty) {
+        seenMap = Map<String, dynamic>.from(jsonDecode(rawSeen));
+      }
+
+      final bool seen = seenMap[userId] ?? false;
+
       final otherUserId = row['user_1_id'] == userId
           ? row['user_2_id']
           : row['user_1_id'];
@@ -325,35 +347,19 @@ Future<void> fetch_api() async {
         "profile_pic": row["profile_pic"],
         "last_msg": row["last_msg"],
         "group": row["group"],
-        "last_msg_time":row["last_msg_time"]
+        "last_msg_time": row["last_msg_time"],
+        "msg_seen": seen,
       };
     }).toList();
 
-    final msgRows = await _db
-        .from('messages')
-        .select('sender_id,receiver_id,msg_seen')
-        .or('sender_id.eq.$userId,receiver_id.eq.$userId');
-
     final Map<String, Map<String, dynamic>> contactMap = {};
-
-    for (final msg in msgRows) {
-      final sender = msg['sender_id'] as String;
-      final receiver = msg['receiver_id'] as String;
-      final other = sender == userId ? receiver : sender;
-      if (!contactMap.containsKey(other)) {
-        contactMap[other] = {
-          'id': other,
-          'msg_seen': sender == userId ? 'seen' : (msg['msg_seen'] ?? ''),
-        };
-      }
-    }
 
     for (final id in contactlst) {
       contactMap.putIfAbsent(
         id["id"],
         () => {
           'id': id["id"],
-          'msg_seen': '',
+          'msg_seen': false,
           "name": id["name"],
           "chat_id": id["chat_id"],
           "members": id["members"],
@@ -379,7 +385,6 @@ Future<void> fetch_api() async {
     final List<Map<String, dynamic>> contacts = [];
     for (final u in contactlst) {
       final uid = u['id'];
-      final info = contactMap[uid]!;
       final userData = userMap[uid];
 
       contacts.add({
@@ -391,18 +396,18 @@ Future<void> fetch_api() async {
         'bio': u["group"] ? (u['bio'] ?? '') : (userData?['bio'] ?? ''),
         'fcm_token': u["group"] ? null : userData?['fcm_token'],
         "chat_id": u["chat_id"],
-        'msg_seen': info['msg_seen'],
-        "members":u["members"],
-        "group":u["group"],
-        "last_msg":u["last_msg"] ?? "",
-        "last_msg_time":u["last_msg_time"] ?? ""
+        'msg_seen': u["msg_seen"],
+        "members": u["members"],
+        "group": u["group"],
+        "last_msg": u["last_msg"] ?? "",
+        "last_msg_time": u["last_msg_time"] ?? "",
       });
     }
     contacts.sort((a, b) {
-  final t1 = DateTime.tryParse(a['last_msg_time'] ?? '') ?? DateTime(1970);
-  final t2 = DateTime.tryParse(b['last_msg_time'] ?? '') ?? DateTime(1970);
-  return t2.compareTo(t1); // newest first
-});
+      final t1 = DateTime.tryParse(a['last_msg_time'] ?? '') ?? DateTime(1970);
+      final t2 = DateTime.tryParse(b['last_msg_time'] ?? '') ?? DateTime(1970);
+      return t2.compareTo(t1); // newest first
+    });
     return {'contact_count': contacts.length, 'contacts': contacts};
   }
 
@@ -423,8 +428,6 @@ Future<void> fetch_api() async {
         );
   }
 
-
-
   Future<String?> _findChat(String a, String b) async {
     final r = await _db
         .from('messages')
@@ -435,7 +438,6 @@ Future<void> fetch_api() async {
         .limit(1);
     return r.isEmpty ? null : r.first['chat_id'];
   }
-
 
   /////  add message   /////
   String buildChatId(String a, String b) {
@@ -452,10 +454,6 @@ Future<void> fetch_api() async {
     return r?['fcm_token'];
   }
 
-
-
-
-
   Future<void> addMessageFast(
     String sender,
     String receiver,
@@ -464,19 +462,39 @@ Future<void> fetch_api() async {
     String type,
   ) async {
     // final chatId = buildChatId(sender, receiver);
-    updatelastmsg(chatId, msg);
-    final members = all_contacts.value["contacts"][all_contacts.value["contacts"].indexWhere((e) => e['chat_id'] == chatId )]["members"];
-   final name = (sender!="Aurex AI") ? await FirebaseAuth.instance.currentUser!.displayName:"Aurex AI";
+    // updatelastmsg(chatId, msg);
+    final members =
+        all_contacts.value["contacts"][all_contacts.value["contacts"]
+            .indexWhere((e) => e['chat_id'] == chatId)]["members"];
+    Map<String, dynamic> seen_data = {};
+    for (final i in members) {
+      seen_data[i] = sender == i ? true : false;
+    }
+
+    final name = (sender != "Aurex AI")
+        ? await FirebaseAuth.instance.currentUser!.displayName
+        : "Aurex AI";
     await _db.from('messages').insert({
       'chat_id': chatId,
       'sender_id': sender,
       'receiver_id': receiver,
-      "members" : members,
+      "members": members,
       'msg': msg,
-      "type":type,
-      "sender_name":name
+      "type": type,
+      "msg_seen": jsonEncode(seen_data),
+      "sender_name": name,
     });
-     print("fetching fcm 😋 ");
+
+    await _db
+        .from('user_contacts')
+        .update({
+          'last_msg': msg,
+          "last_msg_time": DateTime.now().toUtc().toIso8601String(),
+          "msg_seen": seen_data,
+        })
+        .eq('chat_id', chatId);
+
+    print("fetching fcm 😋 ");
     final fcm = await getUserToken(receiver);
     print("😋😋😋 fcm token :${fcm}");
     if (fcm != null && fcm.isNotEmpty) {
@@ -486,7 +504,9 @@ Future<void> fetch_api() async {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'token': fcm,
-            'title':sender == "Aurex AI" ?"Aurex AI" :FirebaseAuth.instance.currentUser?.displayName,
+            'title': sender == "Aurex AI"
+                ? "Aurex AI"
+                : FirebaseAuth.instance.currentUser?.displayName,
             'body': msg.contains('\uE000') ? '⦿ Image' : msg,
             'send_id': sender,
           }),
@@ -495,52 +515,71 @@ Future<void> fetch_api() async {
     }
   }
 
-
-
-   Future<void> addMsgforchatbot(
+  Future<void> addMsgforchatbot(
     String sender,
     String receiver,
     String msg,
     String type,
-    String sender_name
-      ) async {
+    String sender_name,
+  ) async {
     final chatId = buildChatId(sender, receiver);
     updatelastmsg(chatId, msg);
-    final members = ["chatbot",sender];   
+    final members = ["chatbot", sender];
+
     await _db.from('messages').insert({
       'chat_id': chatId,
       'sender_id': sender,
       'receiver_id': receiver,
-      "members" : members,
-      "sender_name" : sender_name,
-      "type":type,
+      "members": members,
+      "sender_name": sender_name,
+      "type": type,
       'msg': msg,
-    });}
+    });
+  }
 
-
-
-    Future<void> addMessagegrp(
+  Future<void> addMessagegrp(
     String sender,
     String chatId,
     String msg,
     String type,
-    bool bot
+    bool bot,
   ) async {
-    updatelastmsg(chatId, msg);
-    final profpic = bot ? "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/ai.png" : FirebaseAuth.instance.currentUser!.photoURL;
-    final name = bot ? "Aurex Ai" : await FirebaseAuth.instance.currentUser?.displayName;
-    final members = all_contacts.value["contacts"][all_contacts.value["contacts"].indexWhere((e) => e['chat_id'] == chatId )]["members"];
+    // updatelastmsg(chatId, msg);
+    final profpic = bot
+        ? "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/ai.png"
+        : FirebaseAuth.instance.currentUser!.photoURL;
+    final name = bot
+        ? "Aurex Ai"
+        : await FirebaseAuth.instance.currentUser?.displayName;
+    final members =
+        all_contacts.value["contacts"][all_contacts.value["contacts"]
+            .indexWhere((e) => e['chat_id'] == chatId)]["members"];
+
+    Map<String, dynamic> seen_data = {};
+    for (final i in members) {
+      seen_data[i] = sender == i ? true : false;
+    }
+
     await _db.from('messages').insert({
       'chat_id': chatId,
       'sender_id': sender,
-      "sender_prof_pic" : profpic,
+      "sender_prof_pic": profpic,
       'receiver_id': "",
-      "sender_name":name,
-      "type":type,
-      "members":members,
+      "sender_name": name,
+      "type": type,
+      "members": members,
+      "msg_seen": seen_data,
       'msg': msg,
     });
 
+    await _db
+        .from('user_contacts')
+        .update({
+          'last_msg': msg,
+          "last_msg_time": DateTime.now().toUtc().toIso8601String(),
+          "msg_seen": seen_data,
+        })
+        .eq('chat_id', chatId);
     // print("fetching fcm 😋 ");
     // final fcmToken = await contact["fcm_token"];
     // print("😋😋😋 fcm token :${fcmToken}");
@@ -595,34 +634,36 @@ Future<void> fetch_api() async {
 
   ////  user all chats ////
 
-  Future<Map<String, dynamic>> getAllChatsFormatted(
-    String userId,
-  ) async {
+  Future<Map<String, dynamic>> getAllChatsFormatted(String userId) async {
     final rows = await _db
         .from('messages')
         .select(
           'msg,timestamp,sender_id,receiver_id,conversation_id,chat_id,sender_name,sender_prof_pic,type',
         )
-        .or('sender_id.eq.$userId,receiver_id.eq.$userId,members.cs.{${userId}}')
+        .or(
+          'sender_id.eq.$userId,receiver_id.eq.$userId,members.cs.{${userId}}',
+        )
         .order('timestamp', ascending: true);
-   print("rows:$rows");
+    print("rows:$rows");
     final Map<String, List<Map<String, dynamic>>> chatMap = {};
-   
+
     for (final m in rows) {
       final sender = m['sender_id'] as String;
       final chatid = m["chat_id"] as String;
       chatMap.putIfAbsent(chatid, () => []);
       chatMap[chatid]!.add({
         'msg': m['msg'],
-        "sender_prof_pic" : m["sender_prof_pic"] ?? "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/1771249136595.jpg" ,
+        "sender_prof_pic":
+            m["sender_prof_pic"] ??
+            "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/1771249136595.jpg",
         'receiver_id': m['receiver_id'],
-        "sender_name":m['sender_name'],
+        "sender_name": m['sender_name'],
         'sender_id': m['sender_id'],
         'timestamp': m['timestamp'],
         'conversation_id': m['conversation_id'],
         "chat_id": m["chat_id"],
         'user_sent': sender == userId ? 'yes' : 'no',
-        "type":m["type"]
+        "type": m["type"],
       });
     }
     final List<Map<String, dynamic>> chats = [];
@@ -646,17 +687,19 @@ Future<void> fetch_api() async {
         .single();
 
     List<String> members = List<String>.from(data['members']);
-    if(!members.contains("chatbot"))members.add("chatbot");
+    if (!members.contains("chatbot")) members.add("chatbot");
     if (!members.contains(newUserId)) {
       members.add(newUserId);
       print(members);
-      await _db.from('user_contacts').update({'members': members}).eq('chat_id', chatId);
+      await _db
+          .from('user_contacts')
+          .update({'members': members})
+          .eq('chat_id', chatId);
     }
     print("Done Adding 🛰️🛰️🛰️🛰️🚀🚀 ");
   }
 
-
-//////   remove member from group /////
+  //////   remove member from group /////
   Future<void> remove_member_from_group(String newUserId, String chatId) async {
     final data = await _db
         .from('user_contacts')
@@ -668,32 +711,36 @@ Future<void> fetch_api() async {
     if (members.contains(newUserId)) {
       members.remove(newUserId);
       print(members);
-      await _db.from('user_contacts').update({'members': members.toList()}).eq('chat_id', chatId);
+      await _db
+          .from('user_contacts')
+          .update({'members': members.toList()})
+          .eq('chat_id', chatId);
     }
     print("Done Removing 🛰️🛰️🛰️🛰️🚀🚀 ");
   }
 
-
   /////  add members to group while creating  /////
-  Future<void> create_group(List users, String name,String pic,String chatId) async {
+  Future<void> create_group(
+    List users,
+    String name,
+    String pic,
+    String chatId,
+  ) async {
     final email = FirebaseAuth.instance.currentUser?.email;
     List<dynamic> members = List.from(users);
-    if(!members.contains("chatbot"))members.add("chatbot");
-    if(!members.contains(email))members.add(email);
+    if (!members.contains("chatbot")) members.add("chatbot");
+    if (!members.contains(email)) members.add(email);
     print("\n  \n  \n");
     print(members);
-    await _db.from('user_contacts').insert(
-      {
-        "members":members,
-        "profile_pic": pic,
-        "name":name,
-        "group":true,
-        "chat_id":chatId
-      }
-    );
+    await _db.from('user_contacts').insert({
+      "members": members,
+      "profile_pic": pic,
+      "name": name,
+      "group": true,
+      "chat_id": chatId,
+    });
     print("Done Adding 🛰️🛰️🛰️🛰️🚀🚀 ");
   }
-
 
   ////  delete message ////
   Future<void> deleteSingleMessage(String chatId, int convoId) async {
@@ -705,7 +752,7 @@ Future<void> fetch_api() async {
     print("object");
   }
 
-///// delete for user only   ////
+  ///// delete for user only   ////
   Future<void> deleteMsgforusere(String chatId, int convoId) async {
     await _db
         .from('messages')
@@ -715,14 +762,13 @@ Future<void> fetch_api() async {
     print("object");
   }
 
-
   ////   clear chat  /////
 
   Future<void> clearChat(String chatId) async {
     await _db
         .from('messages')
         .delete()
-        .eq("chat_id",chatId)
+        .eq("chat_id", chatId)
         .gt('conversation_id', 0);
   }
 

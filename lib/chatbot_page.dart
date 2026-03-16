@@ -1052,8 +1052,7 @@ bool isreplying = false ;
   Future<void> mark_msg_seen(String other_user) async {
     print("\nmarking \n");
     final email = await FirebaseAuth.instance.currentUser?.email;
-    final a = await chatApi.markLastMsgSeen(email!, other_user);
-    print("🚀🚀🚀:${a}");
+    // final a = await chatApi.markLastMsgSeen(email!, other_user);
     await user_contacts();
   }
 

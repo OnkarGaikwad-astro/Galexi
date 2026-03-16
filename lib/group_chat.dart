@@ -171,6 +171,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   /// init state  ////
   @override
   void initState() {
+    chatApi.markLastMsgSeen(widget.ID);
     noti = true;
     username();
     chatApi.setOnline();
@@ -929,14 +930,6 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     );
   }
 
-  /////  mark msg seen ////
-  Future<void> mark_msg_seen(String other_user) async {
-    print("\nmarking \n");
-    final email = await FirebaseAuth.instance.currentUser?.email;
-    final a = await chatApi.markLastMsgSeen(email!, other_user);
-    print("🚀🚀🚀:${a}");
-    await user_contacts();
-  }
 
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;

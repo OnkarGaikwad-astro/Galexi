@@ -57,8 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> mark_msg_seen(String other_user) async {
     final email = await FirebaseAuth.instance.currentUser?.email;
-    final a = await chatApi.markLastMsgSeen(email!, other_user);
-    print("🚀🚀🚀 ${a}");
+    // final a = await chatApi.markLastMsgSeen(email!, other_user);
     await user_contacts();
     setState(() {});
   }
@@ -316,7 +315,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 width: 210,
                                 child: Text(
                                   overflow: TextOverflow.ellipsis,
-
+                                  // softWrap: false,/
+                                  maxLines: 1,
                                   all_contacts
                                           .value["contacts"][num]["last_msg"]
                                           .contains(SECRET_MARKER)
@@ -370,7 +370,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                   )
                                   : SizedBox.shrink(),
                     SizedBox(width: 25),
-                    contacts["contacts"][num]["msg_seen"] != "seen"
+                    !contacts["contacts"][num]["msg_seen"]
                         ? Text("🚀", style: TextStyle(fontSize: 14))
                         : SizedBox.shrink(),
                   ],
@@ -648,7 +648,9 @@ Future <void>userpres()async{
               //     },
               //   ),
               // );
-              print(all_contacts.value);
+              
+              // print(all_contacts.value["contacts"][0]["msg_seen"]);
+              chatApi.markLastMsgSeen("onkar.gaikwad@iitgn.ac.in__onkargaikwad3319@gmail.com");
               /////// check  ///////
             },
             child: CircleAvatar(
