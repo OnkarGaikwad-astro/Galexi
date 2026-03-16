@@ -108,6 +108,14 @@ Future<void> fetch_api() async {
         .eq('user_id', userId);
   }
 
+  /////  update last message  ////
+  Future<void> updatelastmsg(String chatid,String msg) async {
+    await _db
+        .from('user_contacts')
+        .update({'last_msg':msg })
+        .eq('chat_id', chatid);
+  }
+
   /////  get last seen  /////
 
   Future<String?> getLastSeen(String userId) async {
@@ -457,6 +465,7 @@ Future<void> fetch_api() async {
     String type,
   ) async {
     // final chatId = buildChatId(sender, receiver);
+    updatelastmsg(chatId, msg);
     final members = all_contacts.value["contacts"][all_contacts.value["contacts"].indexWhere((e) => e['chat_id'] == chatId )]["members"];
    final name = (sender!="Aurex AI") ? await FirebaseAuth.instance.currentUser!.displayName:"Aurex AI";
     await _db.from('messages').insert({
@@ -497,6 +506,7 @@ Future<void> fetch_api() async {
     String sender_name
       ) async {
     final chatId = buildChatId(sender, receiver);
+    updatelastmsg(chatId, msg);
     final members = ["chatbot",sender];   
     await _db.from('messages').insert({
       'chat_id': chatId,
@@ -517,6 +527,7 @@ Future<void> fetch_api() async {
     String type,
     bool bot
   ) async {
+    updatelastmsg(chatId, msg);
     final profpic = bot ? "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/ai.png" : FirebaseAuth.instance.currentUser!.photoURL;
     final name = bot ? "Aurex Ai" : await FirebaseAuth.instance.currentUser?.displayName;
     final members = all_contacts.value["contacts"][all_contacts.value["contacts"].indexWhere((e) => e['chat_id'] == chatId )]["members"];

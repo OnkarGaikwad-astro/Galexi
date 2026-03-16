@@ -127,6 +127,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    user_contacts();
     chatApi.fetch_api();
     chatApi.savefcm();
     chatApi.setOnline();

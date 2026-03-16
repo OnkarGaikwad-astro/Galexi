@@ -150,7 +150,8 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
 void userpre()async{
 isOnline = await chatApi.getuserpresence(widget.ID);
-print("\n\nuser presence detected \n\n");
+print(isOnline);
+print("\n\n user presence detected \n\n");
 }
   /// init state  ////
   @override
@@ -538,7 +539,7 @@ print("\n\nuser presence detected \n\n");
                                 ),
                               ),
                             ),
-                            isOnline?Positioned(right: -1,top: -2,child: Icon(shadows: [Shadow(blurRadius: 20,color: Colors.black)],size: 20,Icons.circle,color: const Color.fromARGB(255, 0, 255, 106),fontWeight: FontWeight.bold,)):SizedBox.shrink()
+                            isOnline?Positioned(right: -1,top: -1,child: Icon(shadows: [Shadow(blurRadius: 20,color: Colors.black)],size: 17,Icons.circle,color: const Color.fromARGB(255, 0, 255, 106),fontWeight: FontWeight.bold,)):SizedBox.shrink()
                           ],
                         ),
                         SizedBox(width: 20),

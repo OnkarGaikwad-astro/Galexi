@@ -348,29 +348,25 @@ class _MyHomePageState extends State<MyHomePage> {
                     //         : const Color.fromARGB(255, 72, 71, 71),
                     //   ),
                     // ),
-                    SizedBox(width: 60,),
+                    SizedBox(width: 10,),
                     isOnline
-                                  ? Positioned(
-                                      right: -1,
-                                      top: -2,
-                                      child: Icon(
-                                        shadows: [
-                                          Shadow(
-                                            blurRadius: 20,
-                                            color: Colors.black,
-                                          ),
-                                        ],
-                                        size: 20,
-                                        Icons.circle_sharp,
-                                        color: const Color.fromARGB(
-                                          255,
-                                          0,
-                                          255,
-                                          106,
-                                        ),
-                                        fontWeight: FontWeight.bold,
+                                  ? Icon(
+                                    shadows: [
+                                      Shadow(
+                                        blurRadius: 20,
+                                        color: Colors.black,
                                       ),
-                                    )
+                                    ],
+                                    size: 20,
+                                    Icons.circle_sharp,
+                                    color: const Color.fromARGB(
+                                      255,
+                                      0,
+                                      255,
+                                      106,
+                                    ),
+                                    fontWeight: FontWeight.bold,
+                                  )
                                   : SizedBox.shrink(),
                     SizedBox(width: 25),
                     contacts["contacts"][num]["msg_seen"] != "seen"
@@ -406,19 +402,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 
-
-
-  @override
-  void initState() {
-    super.initState();
-    chatApi.fetch_api();
-
-    chatApi.savefcm();
-    if (Hive.box("aurex_api").get("keys") != null) {
-      api_keys.value = Hive.box("aurex_api").get("keys");
-    }
-    final contacts = all_contacts.value["contacts"] as List;
-
+Future <void>userpres()async{
+  await user_contacts();
+ final contacts = all_contacts.value["contacts"] as List ?? [];
     final ids = contacts
         .map((c) => c["id"])
         .where((id) => id != null && id.toString().isNotEmpty)
@@ -427,7 +413,7 @@ class _MyHomePageState extends State<MyHomePage> {
     presenceChannel = Supabase.instance.client
         .channel('presence_subset')
         .onPostgresChanges(
-          event: PostgresChangeEvent.update,
+          event: PostgresChangeEvent.all,
           schema: 'public',
           table: 'user_presence',
           filter: PostgresChangeFilter(
@@ -447,6 +433,22 @@ class _MyHomePageState extends State<MyHomePage> {
           },
         )
         .subscribe();
+}
+
+  @override
+  void initState() {
+    super.initState();
+    chatApi.fetch_api();
+    userpres();
+    chatApi.savefcm();
+    if (Hive.box("aurex_api").get("keys") != null) {
+      api_keys.value = Hive.box("aurex_api").get("keys");
+    }
+
+
+
+   
+
     isdark = Hive.box("isdark").get("isDark") ?? true;
     Hive.box("isdark").put("isDark", isdark);
     Future.microtask(() {
@@ -459,7 +461,7 @@ class _MyHomePageState extends State<MyHomePage> {
         );
       }
     });
-    user_contacts();
+    
   }
 
   @override
@@ -548,8 +550,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
               ElevatedButton(
                 onPressed: () async {
-                  await signOut();
                   chatApi.setOffline();
+                  await signOut();
                   if (FirebaseAuth.instance.currentUser == null) {
                     Navigator.pushReplacement(
                       context,
