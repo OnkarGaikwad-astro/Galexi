@@ -234,6 +234,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
             if (payload.eventType == PostgresChangeEvent.delete) return;
             if (newMsg["sender_id"] != myUserId) {
               receivedsound();
+              chatApi.markLastMsgSeen(widget.ID);
             }
           },
         )
