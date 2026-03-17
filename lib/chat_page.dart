@@ -161,9 +161,9 @@ print("\n\n user presence detected \n\n");
     username();
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    chatApi.markLastMsgSeen(widget.ID);
     final myUserId = FirebaseAuth.instance.currentUser!.email!;
     chatId = buildChatId(myUserId, widget.ID);
+    chatApi.markLastMsgSeen(chatId);
 
 
     /////  user presence ////
