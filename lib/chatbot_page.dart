@@ -1433,7 +1433,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
       );
       res = jsonDecode(
         response.body,
-      )["response"]["choices"][0]["message"]["content"];
+      )["choices"][0]["message"]["content"];
       print(res);
     } else {
       for (String apiKey in api_keys.value) {
