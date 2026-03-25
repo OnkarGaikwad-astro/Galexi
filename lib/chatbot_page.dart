@@ -105,10 +105,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
     final Map<String, dynamic> contacts = Map<String, dynamic>.from(
       all_contacts.value,
     );
-    final dynamic result = msg_list["chats"].firstWhere(
-      (c) => c["chat_id"] == chatId,
-      orElse: () => <String, dynamic>{},
-    );
+    final dynamic result = msg_list["chats"][chatId];
     if (result == null) {
       chat = {"message_count": 0, "messages": []};
     } else {

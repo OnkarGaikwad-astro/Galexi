@@ -81,14 +81,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     final Map<String, dynamic> contacts = Map<String, dynamic>.from(
       all_contacts.value,
     );
-    final dynamic result = msg_list["chats"].firstWhere(
-      (c) =>
-          c["chat_id"] ==
-          contacts["contacts"][contacts["contacts"].indexWhere(
-            (e) => e['chat_id'] == widget.ID,
-          )]["chat_id"],
-      orElse: () => <String, dynamic>{},
-    );
+    final dynamic result = msg_list["chats"][widget.ID];
     if (result == null) {
       chat = {"message_count": 0, "messages": []};
     } else {
@@ -151,10 +144,11 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
     // msg_sent = true;
-    final email = FirebaseAuth.instance.currentUser?.email;
-    all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
-    final box = Hive.box('cache');
-    await box.put('all_msg_list', all_msg_list.value);
+    final chat = await chatApi.getChat(widget.ID);
+    all_msg_list.value["chats"][widget.ID] = chat["chat"];
+    print(all_msg_list.value["chats"][widget.ID]);
+    final box = Hive.box('messages');
+    await box.put(widget.ID,all_msg_list.value["chats"][widget.ID]);
     setState(() {});
     await fetch_chat();
     msg_sent = true;

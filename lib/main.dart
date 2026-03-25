@@ -89,6 +89,7 @@ Future<void> main() async {
   );
   await Hive.initFlutter();
   await Hive.openBox('cache');
+  await Hive.openBox('messages');
   await Hive.openBox('isdark');
   await Hive.openBox('aurex_api');
 
@@ -129,6 +130,7 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     user_contacts();
     chatApi.fetch_api();
+    all_chats_list();
     chatApi.savefcm();
     chatApi.setOnline();
     isdark = Hive.box("isdark").get("isDark") ?? true;
@@ -147,8 +149,8 @@ class _MyAppState extends State<MyApp> {
   Future<void> all_chats_list() async {
     final email = FirebaseAuth.instance.currentUser?.email;
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
-    final box = Hive.box('cache');
-    box.put('all_msg_list', all_msg_list.value);
+    final box = Hive.box('messages');
+    box.putAll(all_msg_list.value);
     setState(() {});
   }
 
@@ -170,8 +172,10 @@ class _MyAppState extends State<MyApp> {
     if (box.get('all_contacts') != null) {
       all_contacts.value = Map<String, dynamic>.from(box.get('all_contacts'));
     }
-    if (box.get('all_msg_list') != null) {
-      all_msg_list.value = Map<String, dynamic>.from(box.get('all_msg_list'));
+
+    final msgbox = Hive.box('messages');
+    if (msgbox.isNotEmpty) {
+      all_msg_list.value['chats'] = (msgbox.toMap());
     }
   }
 

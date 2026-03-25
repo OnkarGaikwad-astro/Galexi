@@ -82,14 +82,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final Map<String, dynamic> contacts = Map<String, dynamic>.from(
       all_contacts.value,
     );
-    final dynamic result = msg_list["chats"].firstWhere(
-      (c) =>
-          c["chat_id"] ==
-          contacts["contacts"][contacts["contacts"].indexWhere(
-            (e) => e['chat_id'] == chatId,
-          )]["chat_id"],
-      orElse: () => <String, dynamic>{},
-    );
+    final dynamic result = msg_list["chats"][chatId];
     if (result == null) {
       chat = {"message_count": 0, "messages": []};
     } else {
@@ -133,10 +126,12 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   ////////  chat_list  ///////
   Future<void> all_chats_list() async {
-    final email = FirebaseAuth.instance.currentUser?.email;
-    all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
-    final box = Hive.box('cache');
-    await box.put('all_msg_list', all_msg_list.value);
+    final chat = await chatApi.getChat(chatId);
+    all_msg_list.value["chats"][chatId] = chat["chat"];
+    print(all_msg_list.value["chats"][chatId]);
+    final box = Hive.box('messages');
+    await box.put(chatId,all_msg_list.value["chats"][chatId]);
+    print("object");
     setState(() {});
     await fetch_chat();
     msg_sent = true;

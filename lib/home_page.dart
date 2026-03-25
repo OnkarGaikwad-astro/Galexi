@@ -31,7 +31,7 @@ late String your_name;
 late RealtimeChannel presenceChannel;
 late RealtimeChannel ContactChannel;
 Map<String, bool> onlineUsers = {};
-
+late String name_change;
 class MyHomePage extends StatefulWidget {
   final VoidCallback toggleTheme;
   const MyHomePage({super.key, required this.toggleTheme});
@@ -485,8 +485,8 @@ Future <void>userpres()async{
   Future<void> all_chats_list() async {
     final email = FirebaseAuth.instance.currentUser?.email;
     all_msg_list.value = await chatApi.getAllChatsFormatted(email!);
-    final box = Hive.box('cache');
-    box.put('all_msg_list', all_msg_list.value);
+    final box = Hive.box('messages');
+    box.putAll(all_msg_list.value);
     setState(() {});
   }
 
@@ -498,11 +498,13 @@ Future<void> fetch_on_contacts()async{
   });
 }
 
+
   @override
   void initState() {
     super.initState();
     chatApi.fetch_api();
     fetch_on_contacts();
+    all_chats_list();
     userpres();
     chatApi.savefcm();
     if (Hive.box("aurex_api").get("keys") != null) {
@@ -548,18 +550,21 @@ Future<void> fetch_on_contacts()async{
   @override
   Widget build(BuildContext context) {
     final isdark = Theme.of(context).brightness == Brightness.dark;
+    final TextEditingController namechange = TextEditingController();
+    bool editnamechange = false ;
     return Scaffold(
       drawerEnableOpenDragGesture: false,
       drawerEdgeDragWidth: 200,
 
       drawer: SafeArea(
         child: Drawer(
+          backgroundColor:kInputBorder,
           width: 300,
           child: Column(
             children: [
               SizedBox(height: 20),
               ClipRRect(
-                borderRadius: BorderRadiusGeometry.circular(30),
+                borderRadius: BorderRadiusGeometry.circular(20),
                 child: CachedNetworkImage(
                   filterQuality: FilterQuality.high,
                   imageUrl: FirebaseAuth.instance.currentUser!.photoURL!,
@@ -584,8 +589,22 @@ Future<void> fetch_on_contacts()async{
                   fadeOutDuration: Duration.zero,
                 ),
               ),
-
-              Text(FirebaseAuth.instance.currentUser!.displayName ?? "astro"),
+              // SizedBox(height: 10,),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Container(width: 100,height: 35,decoration: BoxDecoration(borderRadius: BorderRadius.circular(10),color: kTextHint),child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  // Text(FirebaseAuth.instance.currentUser!.displayName ?? "astro",style: GoogleFonts.josefinSans(color: const Color.fromARGB(255, 216, 240, 217)),),
+                  child: TextField(enabled:editnamechange,controller: namechange,decoration: InputDecoration(
+                    hint: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                        child: Text(FirebaseAuth.instance.currentUser!.displayName ?? "astro",style: GoogleFonts.josefinSans(color: const Color.fromARGB(255, 216, 240, 217)),),
+                      ),
+                    ),
+                  ),),
+                )),
+              ),
               ElevatedButton(
                 onPressed: () async {
                   await FirebaseAuth.instance.currentUser!.updateDisplayName(
@@ -673,7 +692,6 @@ Future<void> fetch_on_contacts()async{
                   },
                 ),
               );
-             
             },
             child: CircleAvatar(
               maxRadius: 15,

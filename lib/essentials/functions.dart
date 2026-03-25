@@ -94,6 +94,22 @@ class SupabaseChatApi {
     return {'count': rows.length, 'users': rows};
   }
 
+
+Future<Map<String, dynamic>> getUsers({int page = 0, int limit = 20}) async {
+  final from = page * limit;
+  final to = from + limit - 1;
+
+  final rows = await _db
+      .from('users')
+      .select(
+        'id,user_id,name,bio,fcm_token,phone_no,profile_pic,last_seen,updated_at',
+      )
+      .range(from, to); 
+  return {
+    'count': rows.length,
+    'users': rows,
+  };
+}
   ////  all users info  ////
 
   Future<List> allUsersInfo() async {
@@ -657,30 +673,37 @@ class SupabaseChatApi {
   ////  chat between user and contact  /////
 
   Future<Map<String, dynamic>> getChat(
-    String currentUser,
-    String otherUser,
+    String chatId,
   ) async {
+    String currentUser = FirebaseAuth.instance.currentUser!.email??"";
     final rows = await _db
         .from('messages')
-        .select('msg,timestamp,sender_id,receiver_id')
-        .or(
-          'and(sender_id.eq.$currentUser,receiver_id.eq.$otherUser),'
-          'and(sender_id.eq.$otherUser,receiver_id.eq.$currentUser)',
-        )
-        .order('conversation_id');
+        .select('msg,timestamp,sender_id,receiver_id,conversation_id,chat_id,sender_name,sender_prof_pic,type,msg_seen')
+        .eq("chat_id", chatId)
+        .order('timestamp', ascending: true);
     final List<Map<String, dynamic>> messages = rows.map((m) {
       final sender = m['sender_id'] as String;
+    
+
       return {
         'msg': m['msg'],
+        "sender_prof_pic":
+            m["sender_prof_pic"] ??
+            "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/1771249136595.jpg",
         'receiver_id': m['receiver_id'],
-        'sender_id': sender,
+        "sender_name": m['sender_name'],
+        'sender_id': m['sender_id'],
         'timestamp': m['timestamp'],
+        'conversation_id': m['conversation_id'],
+        "chat_id": m["chat_id"],
         'user_sent': sender == currentUser ? 'yes' : 'no',
+        "type": m["type"],
+        "msg_seen" :m["msg_seen"]
       };
     }).toList();
     return {
       'chat': {
-        'contact_id': otherUser,
+        'chat_id': chatId,
         'message_count': messages.length,
         'messages': messages,
       },
@@ -721,15 +744,15 @@ class SupabaseChatApi {
         "msg_seen" :m["msg_seen"]
       });
     }
-    final List<Map<String, dynamic>> chats = [];
+    final Map<String, dynamic> chats ={};
 
     chatMap.forEach((chatid, messages) {
-      chats.add({
+      chats["$chatid"]={
         'chat_id': chatid,
         'message_count': messages.length,
         'messages': messages,
-      });
-    });
+      };});
+    
     return {'chats': chats};
   }
 
