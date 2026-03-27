@@ -11,6 +11,7 @@ import 'package:Aera/group_chat.dart' hide SECRET_MARKER;
 import 'package:Aera/login_page.dart';
 import 'package:Aera/lotties_.dart';
 import 'package:Aera/main.dart';
+import 'package:Aera/model/embedding_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 // import 'package:Aera/main.dart';
@@ -37,15 +38,18 @@ File? selectedImage;
 Map<String, bool> onlineUsers = {};
 late String name_change;
 bool readonly = true;
-
+ String vector = "onkar";
 class MyHomePage extends StatefulWidget {
+ 
   final VoidCallback toggleTheme;
-  const MyHomePage({super.key, required this.toggleTheme});
+  MyHomePage({super.key, required this.toggleTheme});
   @override
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+
+   final emb = EmbeddingService();
   /////////    refresh    ///////
 
   Future<void> _refresh() async {
@@ -551,6 +555,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     final isdark = Theme.of(context).brightness == Brightness.dark;
     final TextEditingController namechange = TextEditingController();
+    final TextEditingController vecontroller = TextEditingController();
+   
     namechange.text = FirebaseAuth.instance.currentUser!.displayName ?? "Aera";
     return Scaffold(
       drawerEnableOpenDragGesture: false,
@@ -750,6 +756,21 @@ class _MyHomePageState extends State<MyHomePage> {
                   ),
                 ),
               ),
+              TextField(
+                controller: vecontroller,
+                onSubmitted: (value) async{
+                  await emb.init();
+                  final vectorno = await emb.generateEmbedding("Hello world");
+                  vector = vectorno.length.toString();
+                  setState(() {
+                    
+                  });
+                },
+              ),
+              Container(
+                color: kAccentVariant,
+                child: Text(vector),
+              )
             ],
           ),
         ),
