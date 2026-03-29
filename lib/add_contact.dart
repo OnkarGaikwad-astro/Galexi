@@ -282,7 +282,7 @@ class _AddContactState extends State<AddContact> {
           child: Container(
             decoration: BoxDecoration(
               image: DecorationImage(
-                image: AssetImage("assets/images/girl.jpg"),
+                image: AssetImage("assets/images/interstellar.jpg"),
                 fit: BoxFit.cover,
               ),
               color: kTextHint,

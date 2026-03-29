@@ -6,6 +6,7 @@ import 'package:Aera/add_contact.dart' hide isdark;
 import 'package:Aera/chatbot_page.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
+import 'package:Aera/essentials/slide.dart';
 import 'package:Aera/home_page.dart';
 import 'package:Aera/main.dart' hide isdark;
 import 'package:audioplayers/audioplayers.dart';
@@ -31,6 +32,7 @@ late RealtimeChannel presenceChannel;
 bool isOnline = false;
 int replyid = -1;
 bool imagesent = true;
+
 class GroupChat extends StatefulWidget {
   final dynamic ID;
   const GroupChat({super.key, required this.ID});
@@ -148,7 +150,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
     all_msg_list.value["chats"][widget.ID] = chat["chat"];
     print(all_msg_list.value["chats"][widget.ID]);
     final box = Hive.box('messages');
-    await box.put(widget.ID,all_msg_list.value["chats"][widget.ID]);
+    await box.put(widget.ID, all_msg_list.value["chats"][widget.ID]);
     setState(() {});
     await fetch_chat();
     msg_sent = true;
@@ -156,17 +158,18 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
   }
 
   Future<void> username() async {
-      final name = await FirebaseAuth.instance.currentUser!.displayName;
-      your_name = name!;
-      print(name);
+    final name = await FirebaseAuth.instance.currentUser!.displayName;
+    your_name = name!;
+    print(name);
     setState(() {});
   }
 
-Future<void>Markmsgseen()async{
-  print("started marking msg seen 🚀 ");
-  // await chatApi.markLastMsgSeen(widget.ID);
-  print("Ended mark msg sended🚀 ");
-}
+  Future<void> Markmsgseen() async {
+    print("started marking msg seen 🚀 ");
+    // await chatApi.markLastMsgSeen(widget.ID);
+    print("Ended mark msg sended🚀 ");
+  }
+
   /// init state  ////
   @override
   void initState() {
@@ -622,7 +625,7 @@ Future<void>Markmsgseen()async{
                         if (chat["messages"][realIndex]["msg"] == "")
                           return SizedBox.shrink();
 
-                        return chat["messages"][realIndex]["user_sent"] == "no"
+                        Widget messageWidget =   chat["messages"][realIndex]["user_sent"] == "no"
                             ? (chat["messages"][realIndex]["msg"].contains(
                                     SECRET_MARKER,
                                   )
@@ -645,6 +648,51 @@ Future<void>Markmsgseen()async{
                                         "message")
                                   ? sended_msg(realIndex)
                                   : sendedreply(realIndex));
+
+
+                        // return chat["messages"][realIndex]["user_sent"] == "no"
+                        //     ? (chat["messages"][realIndex]["msg"].contains(
+                        //             SECRET_MARKER,
+                        //           )
+                        //           ? (chat["messages"][realIndex]["type"] ==
+                        //                     "reply")
+                        //                 ? receivedreply(realIndex)
+                        //                 : received_image_base(realIndex)
+                        //           : (chat["messages"][realIndex]["type"] ==
+                        //                 "message")
+                        //           ? recieved_msg(realIndex)
+                        //           : receivedreply(realIndex))
+                        //     : (chat["messages"][realIndex]["msg"].contains(
+                        //             SECRET_MARKER,
+                        //           )
+                        //           ? (chat["messages"][realIndex]["type"] ==
+                        //                     "reply")
+                        //                 ? sendedreply(realIndex)
+                        //                 : sent_image_base(realIndex)
+                        //           : (chat["messages"][realIndex]["type"] ==
+                        //                 "message")
+                        //           ? sended_msg(realIndex)
+                        //           : sendedreply(realIndex));
+
+                        return MessageTile(
+                          message: chat["messages"][realIndex],
+                          realIndex: realIndex,
+                          child: messageWidget,
+
+                          onReply: () {
+                            HapticFeedback.heavyImpact();
+                            print("Reply to $realIndex");
+                            replyid = realIndex;
+                            isreplying = true;
+                            setState(() {});
+                          },
+
+                          onDelete: () async {
+                            print("Delete message $realIndex");
+                            HapticFeedback.heavyImpact();
+                            chatApi.deleteMsgforuser(widget.ID, chat["messages"][realIndex]["conversation_id"]);
+                          },
+                        );
                       },
                     ),
                   ),
@@ -672,7 +720,17 @@ Future<void>Markmsgseen()async{
                               ClipRRect(
                                 borderRadius: BorderRadiusGeometry.circular(10),
                                 child: Image.file(selectedImage!, height: 70),
-                              ),imagesent?SizedBox.shrink():Positioned.fill(child: SizedBox(height: 90,child: Lottie.asset("assets/lotties/Loading_Animation_blue.json"))),
+                              ),
+                              imagesent
+                                  ? SizedBox.shrink()
+                                  : Positioned.fill(
+                                      child: SizedBox(
+                                        height: 90,
+                                        child: Lottie.asset(
+                                          "assets/lotties/Loading_Animation_blue.json",
+                                        ),
+                                      ),
+                                    ),
                               Positioned(
                                 right: -17,
                                 bottom: 40,
@@ -899,12 +957,9 @@ Future<void>Markmsgseen()async{
                                     await send_message(msg, "message");
                                   }
                                 } else if (selectedImage != null) {
-                                    print("object");
-                                    await uploadImageBase64(
-                                      selectedImage!,
-                                      msg,
-                                    );
-                                  } 
+                                  print("object");
+                                  await uploadImageBase64(selectedImage!, msg);
+                                }
 
                                 temp_msg = "";
                                 selectedImage = null;
@@ -929,7 +984,6 @@ Future<void>Markmsgseen()async{
       ),
     );
   }
-
 
   Future<void> user_contacts() async {
     final email = await FirebaseAuth.instance.currentUser?.email;
@@ -1035,7 +1089,10 @@ Future<void>Markmsgseen()async{
             }
             ;
             if (value == "delete for me") {
-              chatApi.deleteMsgforuser(widget.ID,chat["messages"][no]["conversation_id"]);
+              chatApi.deleteMsgforuser(
+                chatId,
+                chat["messages"][no]["conversation_id"],
+              );
             }
             ;
             if (value == "Copy") {
@@ -1058,129 +1115,160 @@ Future<void>Markmsgseen()async{
               // color: Color(0xFF5BB9A8),
               color: Color.fromARGB(255, 130, 158, 190),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
-              child: IntrinsicWidth(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: kDivider,
+            child: IntrinsicWidth(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 37, 250, 90),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(15),
+                        topLeft: Radius.circular(15),
+                        bottomRight: Radius.circular(13),
                       ),
-                      constraints: BoxConstraints(maxHeight: 105),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  your_name == msg[0].trim() ? "You" : msg[0],
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.exo2(
-                                    // color: const Color.fromARGB(255, 2, 194, 174),
-                                    color: kTextSecondary,
-                                    fontWeight: FontWeight.w600,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 3),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(15),
+                            topLeft: Radius.circular(15),
+                            bottomRight: Radius.circular(15),
+                          ),
+                          color: kDivider,
+                        ),
+                        constraints: BoxConstraints(maxHeight: 105),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    your_name == msg[0].trim() ? "You" : msg[0],
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.exo2(
+                                      // color: const Color.fromARGB(255, 2, 194, 174),
+                                      color: const Color.fromARGB(
+                                        255,
+                                        162,
+                                        218,
+                                        251,
+                                      ),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: msg[1].contains(SECRET_MARKER)
-                                    ? GestureDetector(
-                                        onTap: () {
-                                          HapticFeedback.selectionClick();
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return Dialog(
-                                                child: ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadiusGeometry.circular(
-                                                        20,
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: msg[1].contains(SECRET_MARKER)
+                                      ? GestureDetector(
+                                          onTap: () {
+                                            HapticFeedback.selectionClick();
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) {
+                                                return Dialog(
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadiusGeometry.circular(
+                                                          20,
+                                                        ),
+                                                    child: InteractiveViewer(
+                                                      minScale: 1,
+                                                      maxScale: 5,
+                                                      child: Image.network(
+                                                        filterQuality:
+                                                            FilterQuality.high,
+                                                        (msg[1]
+                                                            .toString()
+                                                            .split(
+                                                              SECRET_MARKER,
+                                                            )[1]
+                                                            .trim()
+                                                            .toString()
+                                                            .split("cpn")[0]),
                                                       ),
-                                                  child: InteractiveViewer(
-                                                    minScale: 1,
-                                                    maxScale: 5,
-                                                    child: Image.network(
-                                                      filterQuality:
-                                                          FilterQuality.high,
-                                                      (msg[1]
-                                                          .toString()
-                                                          .split(
-                                                            SECRET_MARKER,
-                                                          )[1]
-                                                          .trim()
-                                                          .toString()
-                                                          .split("cpn")[0]),
                                                     ),
                                                   ),
+                                                );
+                                              },
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadiusGeometry.circular(
+                                                  10,
                                                 ),
-                                              );
-                                            },
-                                          );
-                                        },
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadiusGeometry.circular(10),
-                                          child: Image.network(
-                                            msg[1]
-                                                .toString()
-                                                .split(SECRET_MARKER)[1]
-                                                .trim()
-                                                .toString()
-                                                .split("cpn")[0],
+                                            child: Image.network(
+                                              msg[1]
+                                                  .toString()
+                                                  .split(SECRET_MARKER)[1]
+                                                  .trim()
+                                                  .toString()
+                                                  .split("cpn")[0],
+                                            ),
+                                          ),
+                                        )
+                                      : Text(
+                                          msg[1].trim(),
+                                          softWrap: true,
+                                          style: GoogleFonts.josefinSans(
+                                            color: Colors.white,
                                           ),
                                         ),
-                                      )
-                                    : Text(
-                                        msg[1],
-                                        softWrap: true,
-                                        style: GoogleFonts.josefinSans(
-                                          color:Colors.white
-                                        ),
-                                      ),
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    // SizedBox(height: 5),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
+                  ),
+                  // SizedBox(height: 5),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8.0,
+                        vertical: 2,
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(3.0),
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxHeight: 150),
-                            child: SingleChildScrollView(
-                              child: Text(
-                                msg[2],
-                                style: GoogleFonts.josefinSans(
-                                  color: Colors.black,
-                                ),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: 150),
+                          child: SingleChildScrollView(
+                            child: Text(
+                              msg[2].trim(),
+                              style: GoogleFonts.josefinSans(
+                                color: Colors.black,
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.topRight,
+                  ),
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        left: 8,
+                        right: 8.0,
+                        bottom: 5,
+                      ),
                       child: Text(
                         softWrap: true,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.left,
-                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[0]}",
+                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]}  ",
                         style: GoogleFonts.spaceGrotesk(
                           fontSize: 10,
                           color: Colors.white,
@@ -1195,8 +1283,8 @@ Future<void>Markmsgseen()async{
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1219,7 +1307,7 @@ Future<void>Markmsgseen()async{
             color: kTextHint,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 1.0, vertical: 1),
             child: Column(
               children: [
                 Stack(
@@ -1329,6 +1417,11 @@ Future<void>Markmsgseen()async{
   ///////  received reply   ///
 
   Widget receivedreply(no) {
+    chatApi.markMsgSeen(
+      chatId,
+      chat["messages"][no]["conversation_id"],
+      chat["messages"][no]["msg_seen"],
+    );
     final msg = chat["messages"][no]["msg"].toString().split("rpy");
     return Align(
       alignment: AlignmentGeometry.centerLeft,
@@ -1421,8 +1514,12 @@ Future<void>Markmsgseen()async{
             }
             ;
             if (value == "delete for me") {
-              chatApi.deleteMsgforuser(widget.ID,chat["messages"][no]["conversation_id"]);
+              chatApi.deleteMsgforuser(
+                chatId,
+                chat["messages"][no]["conversation_id"],
+              );
             }
+            ;
             if (value == "Copy") {
               Clipboard.setData(ClipboardData(text: msg[2]));
             }
@@ -1436,214 +1533,171 @@ Future<void>Markmsgseen()async{
         },
         child: Padding(
           padding: const EdgeInsets.only(bottom: 12, left: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadiusGeometry.circular(5),
+          child: Container(
+            constraints: BoxConstraints(maxWidth: 270),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),bottomRight: Radius.circular(15),topRight: Radius.circular(15)),
+              // color: Color(0xFF5BB9A8),
+              color: Color.fromARGB(255, 109, 168, 174),
+            ),
+            child: IntrinsicWidth(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 255, 0, 0),
+                      borderRadius: BorderRadius.only(bottomLeft: Radius.circular(13),bottomRight: Radius.circular(15),topRight: Radius.circular(15))
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 3),
                       child: Container(
-                        height: 20,
-                        width: 20,
-                        child: Image.network(
-                          chat["messages"][no]["sender_prof_pic"] ??
-                              "https://qbppenfcbrszswmfmiop.supabase.co/storage/v1/object/public/images/uploads/1771249136595.jpg",
-                          fit: BoxFit.cover,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),bottomRight: Radius.circular(15),topRight: Radius.circular(15)),
+                          color: kDivider,
                         ),
-                      ),
-                    ),
-                    SizedBox(width: 2),
-                    Text(
-                      your_name ==
-                              chat["messages"][no]["sender_name"]
-                                  .toString()
-                                  .split(" ")[0]
-                          ? "You"
-                          : chat["messages"][no]["sender_name"]
-                                .toString()
-                                .split(" ")[0],
-                      style: GoogleFonts.josefinSans(
-                        fontSize: 9,
-                        color: isdark
-                            ? const Color.fromARGB(255, 173, 200, 238)
-                            : kBackground,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: 2),
-              Container(
-                constraints: BoxConstraints(maxWidth: 270),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  // color: Color(0xFF5BB9A8),
-                  color: Color.fromARGB(255, 109, 168, 174),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4.0,
-                    vertical: 4,
-                  ),
-                  child: IntrinsicWidth(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
-                            color: kDivider,
-                          ),
-                          constraints: BoxConstraints(maxHeight: 105),
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      msg[0],
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.exo2(
-                                        // color: const Color.fromARGB(255, 2, 194, 174),
-                                        color: kTextSecondary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: msg[1].contains(SECRET_MARKER)
-                                        ? GestureDetector(
-                                            onTap: () {
-                                              HapticFeedback.selectionClick();
-                                              showDialog(
-                                                context: context,
-                                                builder: (context) {
-                                                  return Dialog(
-                                                    child: ClipRRect(
-                                                      borderRadius:
-                                                          BorderRadiusGeometry.circular(
-                                                            20,
-                                                          ),
-                                                      child: InteractiveViewer(
-                                                        minScale: 1,
-                                                        maxScale: 5,
-                                                        child: Image.network(
-                                                          filterQuality:
-                                                              FilterQuality
-                                                                  .high,
-                                                          (msg[1]
-                                                              .toString()
-                                                              .split(
-                                                                SECRET_MARKER,
-                                                              )[1]
-                                                              .trim()
-                                                              .toString()
-                                                              .split("cpn")
-                                                              .first),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  );
-                                                },
-                                              );
-                                            },
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadiusGeometry.circular(
-                                                    10,
-                                                  ),
-                                              child: Image.network(
-                                                msg[1]
-                                                    .toString()
-                                                    .split(SECRET_MARKER)[1]
-                                                    .trim()
-                                                    .toString()
-                                                    .split("cpn")[0],
-                                              ),
-                                            ),
-                                          )
-                                        : Text(
-                                            msg[1],
-                                            softWrap: true,
-                                            style: GoogleFonts.josefinSans(
-                                              color: Colors.white
-                                            ),
-                                          ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        // SizedBox(height: 5),
-                        Container(
-                          // constraints: BoxConstraints(maxHeight: 150),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(3.0),
-                            child: Align(
-                              alignment: Alignment.topLeft,
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(maxHeight: 150),
-                                child: SingleChildScrollView(
+                        constraints: BoxConstraints(maxHeight: 105),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerLeft,
                                   child: Text(
-                                    msg[2],
-                                    style: GoogleFonts.josefinSans(
-                                      color: Colors.black,
+                                    your_name == msg[0].trim() ? "You" : msg[0],
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.exo2(
+                                      // color: const Color.fromARGB(255, 2, 194, 174),
+                                      color: kTextSecondary,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
-                              ),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: msg[1].contains(SECRET_MARKER)
+                                      ? GestureDetector(
+                                          onTap: () {
+                                            HapticFeedback.selectionClick();
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) {
+                                                return Dialog(
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadiusGeometry.circular(
+                                                          20,
+                                                        ),
+                                                    child: InteractiveViewer(
+                                                      minScale: 1,
+                                                      maxScale: 5,
+                                                      child: Image.network(
+                                                        filterQuality:
+                                                            FilterQuality.high,
+                                                        (msg[1]
+                                                            .toString()
+                                                            .split(
+                                                              SECRET_MARKER,
+                                                            )[1]
+                                                            .trim()
+                                                            .toString()
+                                                            .split("cpn")
+                                                            .first),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadiusGeometry.circular(10),
+                                            child: Image.network(
+                                              msg[1]
+                                                  .toString()
+                                                  .split(SECRET_MARKER)[1]
+                                                  .trim()
+                                                  .toString()
+                                                  .split("cpn")[0],
+                                            ),
+                                          ),
+                                        )
+                                      : Text(
+                                          msg[1].trim(),
+                                          softWrap: true,
+                                          style: GoogleFonts.josefinSans(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                        Align(
-                          alignment: Alignment.topLeft,
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 4.0),
-                            child: Text(
-                              softWrap: true,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.left,
-                              "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                              style: GoogleFonts.spaceGrotesk(
-                                fontSize: 10,
-                                color: Colors.white,
-                                shadows: [
-                                  Shadow(
-                                    offset: Offset(2, 2), // X and Y position
-                                    blurRadius: 4, // Softness
-                                    color: Colors.black, // Shadow color
-                                  ),
-                                ],
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  // SizedBox(height: 5),
+                  Container(
+                    // constraints: BoxConstraints(maxHeight: 150),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8,vertical: 3),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: 150),
+                          child: SingleChildScrollView(
+                            child: Text(
+                              msg[2].trim(),
+                              style: GoogleFonts.josefinSans(
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6.0,bottom: 5),
+                      child: Text(
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.left,
+                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 10,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(2, 2), // X and Y position
+                              blurRadius: 4, // Softness
+                              color: Colors.black, // Shadow color
+                            ),
+                          ],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
     );
   }
+
 
   Widget sent_image_base(int no) {
     bool imageloaded = false;
@@ -1704,15 +1758,15 @@ Future<void>Markmsgseen()async{
               ),
             ),
             PopupMenuItem(
-                value: "delete for me",
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, color: Colors.red),
-                    SizedBox(width: 10),
-                    Text("Delete For me"),
-                  ],
-                ),
+              value: "delete for me",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text("Delete For me"),
+                ],
               ),
+            ),
             PopupMenuItem(
               value: "reply",
               child: Row(
@@ -1754,8 +1808,11 @@ Future<void>Markmsgseen()async{
             print("deleted");
           }
           if (value == "delete for me") {
-              chatApi.deleteMsgforuser(widget.ID,chat["messages"][no]["conversation_id"]);
-            }
+            chatApi.deleteMsgforuser(
+              widget.ID,
+              chat["messages"][no]["conversation_id"],
+            );
+          }
           if (value == "save_img") {
             await saveImageToGallery(
               chat["messages"][no]["msg"]
@@ -1965,15 +2022,15 @@ Future<void>Markmsgseen()async{
               ),
             ),
             PopupMenuItem(
-                value: "delete for me",
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, color: Colors.red),
-                    SizedBox(width: 10),
-                    Text("Delete For me"),
-                  ],
-                ),
+              value: "delete for me",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text("Delete For me"),
+                ],
               ),
+            ),
             PopupMenuItem(
               value: "reply",
               child: Row(
@@ -2017,8 +2074,11 @@ Future<void>Markmsgseen()async{
             delete_msg(chat["messages"][no]["conversation_id"]);
           }
           if (value == "delete for me") {
-              chatApi.deleteMsgforuser(widget.ID,chat["messages"][no]["conversation_id"]);
-            }
+            chatApi.deleteMsgforuser(
+              widget.ID,
+              chat["messages"][no]["conversation_id"],
+            );
+          }
           if (value == "save_img") {
             await saveImageToGallery(
               chat["messages"][no]["msg"]
@@ -2194,10 +2254,8 @@ Future<void>Markmsgseen()async{
 
   //// upload image to database //////
   Future<void> uploadImageBase64(File imageFile, String msg) async {
-    imagesent  = false ;
-    setState(() {
-      
-    });
+    imagesent = false;
+    setState(() {});
     final bytes = await imageFile.readAsBytes();
     final url = await chatApi.uploadImageBase64(base64Encode(bytes));
     print("\n");
@@ -2243,15 +2301,15 @@ Future<void>Markmsgseen()async{
               ),
             ),
             PopupMenuItem(
-                value: "delete for me",
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, color: Colors.red),
-                    SizedBox(width: 10),
-                    Text("Delete For me"),
-                  ],
-                ),
+              value: "delete for me",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text("Delete For me"),
+                ],
               ),
+            ),
             PopupMenuItem(
               value: "reply",
               child: Row(
@@ -2299,8 +2357,11 @@ Future<void>Markmsgseen()async{
           }
           ;
           if (value == "delete for me") {
-              chatApi.deleteMsgforuser(widget.ID,chat["messages"][no]["conversation_id"]);
-            }
+            chatApi.deleteMsgforuser(
+              widget.ID,
+              chat["messages"][no]["conversation_id"],
+            );
+          }
           if (value == "Copy") {
             Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
           }
@@ -2445,15 +2506,15 @@ Future<void>Markmsgseen()async{
               ),
             ),
             PopupMenuItem(
-                value: "delete for me",
-                child: Row(
-                  children: [
-                    Icon(Icons.delete, color: Colors.red),
-                    SizedBox(width: 10),
-                    Text("Delete For me"),
-                  ],
-                ),
+              value: "delete for me",
+              child: Row(
+                children: [
+                  Icon(Icons.delete, color: Colors.red),
+                  SizedBox(width: 10),
+                  Text("Delete For me"),
+                ],
               ),
+            ),
             PopupMenuItem(
               value: "reply",
               child: Row(
@@ -2501,8 +2562,11 @@ Future<void>Markmsgseen()async{
           }
           ;
           if (value == "delete for me") {
-              chatApi.deleteMsgforuser(widget.ID,chat["messages"][no]["conversation_id"]);
-            }
+            chatApi.deleteMsgforuser(
+              widget.ID,
+              chat["messages"][no]["conversation_id"],
+            );
+          }
           if (value == "Copy") {
             Clipboard.setData(ClipboardData(text: chat["messages"][no]["msg"]));
           }

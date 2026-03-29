@@ -6,6 +6,7 @@ import 'package:Aera/add_contact.dart';
 import 'package:Aera/chatbot_page.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
+import 'package:Aera/essentials/slide.dart';
 import 'package:Aera/main.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -657,7 +658,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                         if (chat["messages"][realIndex]["msg"] == "")
                           return SizedBox.shrink();
 
-                        return chat["messages"][realIndex]["user_sent"] == "no"
+                        Widget messageWidget = chat["messages"][realIndex]["user_sent"] == "no"
                             ? (chat["messages"][realIndex]["msg"].contains(
                                     SECRET_MARKER,
                                   )
@@ -680,6 +681,49 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                         "message")
                                   ? sended_msg(realIndex)
                                   : sendedreply(realIndex));
+
+                        // return chat["messages"][realIndex]["user_sent"] == "no"
+                        //     ? (chat["messages"][realIndex]["msg"].contains(
+                        //             SECRET_MARKER,
+                        //           )
+                        //           ? (chat["messages"][realIndex]["type"] ==
+                        //                     "reply")
+                        //                 ? receivedreply(realIndex)
+                        //                 : received_image_base(realIndex)
+                        //           : (chat["messages"][realIndex]["type"] ==
+                        //                 "message")
+                        //           ? recieved_msg(realIndex)
+                        //           : receivedreply(realIndex))
+                        //     : (chat["messages"][realIndex]["msg"].contains(
+                        //             SECRET_MARKER,
+                        //           )
+                        //           ? (chat["messages"][realIndex]["type"] ==
+                        //                     "reply")
+                        //                 ? sendedreply(realIndex)
+                        //                 : sent_image_base(realIndex)
+                        //           : (chat["messages"][realIndex]["type"] ==
+                        //                 "message")
+                        //           ? sended_msg(realIndex)
+                        //           : sendedreply(realIndex));
+                        return MessageTile(
+                          message: chat["messages"][realIndex],
+                          realIndex: realIndex,
+                          child: messageWidget,
+
+                          onReply: () {
+                            HapticFeedback.heavyImpact();
+                            print("Reply to $realIndex");
+                            replyid = realIndex;
+                            isreplying = true;
+                            setState(() {});
+                          },
+
+                          onDelete: () async {
+                            print("Delete message $realIndex");
+                            HapticFeedback.heavyImpact();
+                            chatApi.deleteMsgforuser(chatId, chat["messages"][realIndex]["conversation_id"]);
+                          },
+                        );
                       },
                     ),
                   ),
@@ -980,10 +1024,10 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             // color: Color(0xFF5BB9A8),
-            color: kTextHint,
+            color: const Color.fromARGB(255, 117, 149, 213),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 1.0, vertical: 1),
             child: Column(
               children: [
                 Stack(
@@ -1040,7 +1084,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                                       chat["messages"][replyid]["msg"]
                                           .toString()
                                           .split("rpy")
-                                          .last,
+                                          .last.trim(),
                                       softWrap: true,
                                       style: GoogleFonts.josefinSans(),
                                     ),
@@ -1215,149 +1259,155 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
               // color: Color(0xFF5BB9A8),
               color: Color.fromARGB(255, 130, 158, 190),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
-              child: IntrinsicWidth(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: kDivider,
-                      ),
-                      constraints: BoxConstraints(maxHeight: 105),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  your_name == msg[0].trim() ? "You" : msg[0],
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.exo2(
-                                    // color: const Color.fromARGB(255, 2, 194, 174),
-                                    color: kTextSecondary,
-                                    fontWeight: FontWeight.w600,
+            child: IntrinsicWidth(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 37, 250, 90),
+                      borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),topLeft: Radius.circular(15),bottomRight: Radius.circular(13))
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 3),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),topLeft: Radius.circular(15),bottomRight: Radius.circular(15)),
+                          color: kDivider,
+                        ),
+                        constraints: BoxConstraints(maxHeight: 105),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    your_name == msg[0].trim() ? "You" : msg[0],
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.exo2(
+                                      // color: const Color.fromARGB(255, 2, 194, 174),
+                                      color: const Color.fromARGB(255, 162, 218, 251),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: msg[1].contains(SECRET_MARKER)
-                                    ? GestureDetector(
-                                        onTap: () {
-                                          HapticFeedback.selectionClick();
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return Dialog(
-                                                child: ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadiusGeometry.circular(
-                                                        20,
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: msg[1].contains(SECRET_MARKER)
+                                      ? GestureDetector(
+                                          onTap: () {
+                                            HapticFeedback.selectionClick();
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) {
+                                                return Dialog(
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadiusGeometry.circular(
+                                                          20,
+                                                        ),
+                                                    child: InteractiveViewer(
+                                                      minScale: 1,
+                                                      maxScale: 5,
+                                                      child: Image.network(
+                                                        filterQuality:
+                                                            FilterQuality.high,
+                                                        (msg[1]
+                                                            .toString()
+                                                            .split(
+                                                              SECRET_MARKER,
+                                                            )[1]
+                                                            .trim()
+                                                            .toString()
+                                                            .split("cpn")[0]),
                                                       ),
-                                                  child: InteractiveViewer(
-                                                    minScale: 1,
-                                                    maxScale: 5,
-                                                    child: Image.network(
-                                                      filterQuality:
-                                                          FilterQuality.high,
-                                                      (msg[1]
-                                                          .toString()
-                                                          .split(
-                                                            SECRET_MARKER,
-                                                          )[1]
-                                                          .trim()
-                                                          .toString()
-                                                          .split("cpn")[0]),
                                                     ),
                                                   ),
-                                                ),
-                                              );
-                                            },
-                                          );
-                                        },
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadiusGeometry.circular(10),
-                                          child: Image.network(
-                                            msg[1]
-                                                .toString()
-                                                .split(SECRET_MARKER)[1]
-                                                .trim()
-                                                .toString()
-                                                .split("cpn")[0],
+                                                );
+                                              },
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadiusGeometry.circular(10),
+                                            child: Image.network(
+                                              msg[1]
+                                                  .toString()
+                                                  .split(SECRET_MARKER)[1]
+                                                  .trim()
+                                                  .toString()
+                                                  .split("cpn")[0],
+                                            ),
+                                          ),
+                                        )
+                                      : Text(
+                                          msg[1].trim(),
+                                          softWrap: true,
+                                          style: GoogleFonts.josefinSans(
+                                            color: Colors.white,
                                           ),
                                         ),
-                                      )
-                                    : Text(
-                                        msg[1],
-                                        softWrap: true,
-                                        style: GoogleFonts.josefinSans(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    // SizedBox(height: 5),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(3.0),
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxHeight: 150),
-                            child: SingleChildScrollView(
-                              child: Text(
-                                msg[2],
-                                style: GoogleFonts.josefinSans(
-                                  color: Colors.black,
-                                ),
+                  ),
+                  // SizedBox(height: 5),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0,vertical: 2),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: 150),
+                          child: SingleChildScrollView(
+                            child: Text(
+                              msg[2].trim(),
+                              style: GoogleFonts.josefinSans(
+                                color: Colors.black,
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.topRight,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 5.0),
-                        child: Text(
-                          softWrap: true,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
-                          "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]}  " +
-                              (!ismsg ? "⬤" : "◯"),
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(2, 2), // X and Y position
-                                blurRadius: 4, // Softness
-                                color: Colors.black, // Shadow color
-                              ),
-                            ],
-                            fontWeight: FontWeight.w400,
-                          ),
+                  ),
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 8,right: 8.0,bottom: 5),
+                      child: Text(
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.left,
+                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]}  " +
+                            (!ismsg ? "⬤" : "◯"),
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 10,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(2, 2), // X and Y position
+                              blurRadius: 4, // Softness
+                              color: Colors.black, // Shadow color
+                            ),
+                          ],
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1488,154 +1538,160 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
           child: Container(
             constraints: BoxConstraints(maxWidth: 270),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),bottomRight: Radius.circular(15),topRight: Radius.circular(15)),
               // color: Color(0xFF5BB9A8),
               color: Color.fromARGB(255, 109, 168, 174),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
-              child: IntrinsicWidth(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: kDivider,
-                      ),
-                      constraints: BoxConstraints(maxHeight: 105),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  your_name == msg[0].trim() ? "You" : msg[0],
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.exo2(
-                                    // color: const Color.fromARGB(255, 2, 194, 174),
-                                    color: kTextSecondary,
-                                    fontWeight: FontWeight.w600,
+            child: IntrinsicWidth(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 255, 0, 0),
+                      borderRadius: BorderRadius.only(bottomLeft: Radius.circular(13),bottomRight: Radius.circular(15),topRight: Radius.circular(15))
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 3),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),bottomRight: Radius.circular(15),topRight: Radius.circular(15)),
+                          color: kDivider,
+                        ),
+                        constraints: BoxConstraints(maxHeight: 105),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    your_name == msg[0].trim() ? "You" : msg[0],
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.exo2(
+                                      // color: const Color.fromARGB(255, 2, 194, 174),
+                                      color: kTextSecondary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: msg[1].contains(SECRET_MARKER)
-                                    ? GestureDetector(
-                                        onTap: () {
-                                          HapticFeedback.selectionClick();
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) {
-                                              return Dialog(
-                                                child: ClipRRect(
-                                                  borderRadius:
-                                                      BorderRadiusGeometry.circular(
-                                                        20,
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: msg[1].contains(SECRET_MARKER)
+                                      ? GestureDetector(
+                                          onTap: () {
+                                            HapticFeedback.selectionClick();
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) {
+                                                return Dialog(
+                                                  child: ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadiusGeometry.circular(
+                                                          20,
+                                                        ),
+                                                    child: InteractiveViewer(
+                                                      minScale: 1,
+                                                      maxScale: 5,
+                                                      child: Image.network(
+                                                        filterQuality:
+                                                            FilterQuality.high,
+                                                        (msg[1]
+                                                            .toString()
+                                                            .split(
+                                                              SECRET_MARKER,
+                                                            )[1]
+                                                            .trim()
+                                                            .toString()
+                                                            .split("cpn")
+                                                            .first),
                                                       ),
-                                                  child: InteractiveViewer(
-                                                    minScale: 1,
-                                                    maxScale: 5,
-                                                    child: Image.network(
-                                                      filterQuality:
-                                                          FilterQuality.high,
-                                                      (msg[1]
-                                                          .toString()
-                                                          .split(
-                                                            SECRET_MARKER,
-                                                          )[1]
-                                                          .trim()
-                                                          .toString()
-                                                          .split("cpn")
-                                                          .first),
                                                     ),
                                                   ),
-                                                ),
-                                              );
-                                            },
-                                          );
-                                        },
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadiusGeometry.circular(10),
-                                          child: Image.network(
-                                            msg[1]
-                                                .toString()
-                                                .split(SECRET_MARKER)[1]
-                                                .trim()
-                                                .toString()
-                                                .split("cpn")[0],
+                                                );
+                                              },
+                                            );
+                                          },
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadiusGeometry.circular(10),
+                                            child: Image.network(
+                                              msg[1]
+                                                  .toString()
+                                                  .split(SECRET_MARKER)[1]
+                                                  .trim()
+                                                  .toString()
+                                                  .split("cpn")[0],
+                                            ),
+                                          ),
+                                        )
+                                      : Text(
+                                          msg[1].trim(),
+                                          softWrap: true,
+                                          style: GoogleFonts.josefinSans(
+                                            color: Colors.white,
                                           ),
                                         ),
-                                      )
-                                    : Text(
-                                        msg[1],
-                                        softWrap: true,
-                                        style: GoogleFonts.josefinSans(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    // SizedBox(height: 5),
-                    Container(
-                      // constraints: BoxConstraints(maxHeight: 150),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(3.0),
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxHeight: 150),
-                            child: SingleChildScrollView(
-                              child: Text(
-                                msg[2],
-                                style: GoogleFonts.josefinSans(
-                                  color: Colors.black,
-                                ),
+                  ),
+                  // SizedBox(height: 5),
+                  Container(
+                    // constraints: BoxConstraints(maxHeight: 150),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8,vertical: 3),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: 150),
+                          child: SingleChildScrollView(
+                            child: Text(
+                              msg[2].trim(),
+                              style: GoogleFonts.josefinSans(
+                                color: Colors.black,
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: 5.0),
-                        child: Text(
-                          softWrap: true,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.left,
-                          "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
-                          style: GoogleFonts.spaceGrotesk(
-                            fontSize: 10,
-                            color: Colors.white,
-                            shadows: [
-                              Shadow(
-                                offset: Offset(2, 2), // X and Y position
-                                blurRadius: 4, // Softness
-                                color: Colors.black, // Shadow color
-                              ),
-                            ],
-                            fontWeight: FontWeight.w400,
-                          ),
+                  ),
+                  Align(
+                    alignment: Alignment.topLeft,
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 6.0,bottom: 5),
+                      child: Text(
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.left,
+                        "${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[0]}:${DateTime.parse(chat["messages"][no]["timestamp"]).toLocal().toString().split(" ")[1].split(".")[0].split(":")[1]} ",
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 10,
+                          color: Colors.white,
+                          shadows: [
+                            Shadow(
+                              offset: Offset(2, 2), // X and Y position
+                              blurRadius: 4, // Softness
+                              color: Colors.black, // Shadow color
+                            ),
+                          ],
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

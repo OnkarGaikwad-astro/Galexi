@@ -349,7 +349,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                               .contains(SECRET_MARKER)
                                           ? " ◯ Image"
                                           : all_contacts
-                                                .value["contacts"][num]["last_msg"],
+                                                .value["contacts"][num]["last_msg"].toString().split("rpy").last,
                                       style: GoogleFonts.exo2(
                                         fontSize: 13.5,
                                         color: const Color.fromARGB(
@@ -829,16 +829,16 @@ class _MyHomePageState extends State<MyHomePage> {
           InkWell(
             borderRadius: BorderRadius.circular(17),
             onTap: () async {
-              // HapticFeedback.heavyImpact();
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) {
-              //       return ChatbotPage();
-              //     },
-              //   ),
-              // );
-              final a = await chatApi.deleteMsgforuser("onkar.gaikwad@iitgn.ac.in__onkargaikwad3319@gmail.com", 1258);
+              HapticFeedback.heavyImpact();
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) {
+                    return ChatbotPage();
+                  },
+                ),
+              );
+              // final a = await chatApi.deleteMsgforuser("onkar.gaikwad@iitgn.ac.in__onkargaikwad3319@gmail.com", 1258);
               // print(a);
             },
             child: CircleAvatar(

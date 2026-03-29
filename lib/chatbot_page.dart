@@ -7,6 +7,7 @@ import 'package:Aera/chat_page.dart';
 import 'package:Aera/chatbot_page.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
+import 'package:Aera/essentials/slide.dart';
 import 'package:Aera/main.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -14,6 +15,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:hive/hive.dart';
@@ -392,16 +394,42 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
                         if (chat["message_count"] == 0) {
                           return SizedBox.shrink();
                         }
+
                         int realIndex = (chat["message_count"] - 1) - index;
-                        if (chat["messages"][realIndex]["msg"] == "")
+
+                        if (chat["messages"][realIndex]["msg"] == "") {
                           return SizedBox.shrink();
-                        return chat["messages"][realIndex]["user_sent"] == "no"
-                            ? (chat["messages"][realIndex]["type"] == "message")
+                        }
+
+                        final message = chat["messages"][realIndex];
+
+                        Widget messageWidget = message["user_sent"] == "no"
+                            ? (message["type"] == "message")
                                   ? recieved_msg(realIndex)
                                   : receivedreply(realIndex)
-                            : (chat["messages"][realIndex]["type"] == "message")
+                            : (message["type"] == "message")
                             ? sended_msg(realIndex)
                             : sendedreply(realIndex);
+
+                        return MessageTile(
+                          message: message,
+                          realIndex: realIndex,
+                          child: messageWidget,
+
+                          onReply: () {
+                            HapticFeedback.heavyImpact();
+                            print("Reply to $realIndex");
+                            replyid = realIndex;
+                            isreplying = true;
+                            setState(() {});
+                          },
+
+                          onDelete: () async {
+                            print("Delete message $realIndex");
+                            HapticFeedback.heavyImpact();
+                            chatApi.deleteMsgforuser(chatId, chat["messages"][realIndex]["conversation_id"]);
+                          },
+                        );
                       },
                     ),
                   ),
@@ -1419,17 +1447,11 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
         body: jsonEncode({
           "model": "llama-3.1-8b-instant",
           "messages": [
-            {
-              "role": "user",
-              "content":
-                  prompt
-            },
+            {"role": "user", "content": prompt},
           ],
         }),
       );
-      res = jsonDecode(
-        response.body,
-      )["choices"][0]["message"]["content"];
+      res = jsonDecode(response.body)["choices"][0]["message"]["content"];
       print(res);
     } else {
       for (String apiKey in api_keys.value) {
@@ -1497,7 +1519,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
     );
     otherUserTyping = false;
     // setState(() {
-      
+
     // });
     receivedsound();
     await all_chats_list();

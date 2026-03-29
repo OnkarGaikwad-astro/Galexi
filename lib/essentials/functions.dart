@@ -596,9 +596,10 @@ Future<Map<String, dynamic>> getUsers({int page = 0, int limit = 20}) async {
     String sender_name,
   ) async {
     final embed = emb.generateEmbedding(msg);
+    final user = FirebaseAuth.instance.currentUser!.email;
     final chatId = buildChatId(sender, receiver);
     updatelastmsg(chatId, msg);
-    final members = ["chatbot", sender];
+    final members = ["chatbot", user];
 
     await _db.from('messages').insert({
       'chat_id': chatId,
