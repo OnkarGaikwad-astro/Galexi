@@ -217,7 +217,7 @@ class _LoginPageState extends State<LoginPage> {
             //         ),
             //       ),
 
-            SizedBox(height: 20),
+            // SizedBox(height: 20),
              FirebaseAuth.instance.currentUser == null? SizedBox.shrink():SizedBox(
               height: 40,
               width: 100,

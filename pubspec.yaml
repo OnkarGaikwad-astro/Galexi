@@ -97,8 +97,6 @@ flutter:
     - assets/images/
     - assets/lotties/
     - assets/sounds/
-    - assets/embedding_model/model.tflite
-    - assets/embedding_model/vocab.txt
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

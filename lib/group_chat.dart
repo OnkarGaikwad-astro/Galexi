@@ -241,7 +241,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
             if (newMsg == null) return;
             if (payload.eventType == PostgresChangeEvent.delete) return;
             if (newMsg["sender_id"] != myUserId) {
-              receivedsound();
+              // receivedsound();
               Markmsgseen();
             }
           },
@@ -1887,7 +1887,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                               .toString()
                               .split("cpn")
                               .last ==
-                          null ||
+                          "" ||
                       chat["messages"][no]["msg"]
                           .split(SECRET_MARKER)[1]
                           .toString()
@@ -2185,7 +2185,7 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                                   .toString()
                                   .split("cpn")
                                   .last ==
-                              null ||
+                              "" ||
                           chat["messages"][no]["msg"]
                               .split(SECRET_MARKER)[1]
                               .toString()
@@ -2269,6 +2269,11 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
 
   ///////  recieved message widget ///////
   Widget recieved_msg(int no) {
+    chatApi.markMsgSeen(
+      widget.ID,
+      chat["messages"][no]["conversation_id"],
+      chat["messages"][no]["msg_seen"],
+    );
     return GestureDetector(
       onLongPressStart: (details) {
         HapticFeedback.selectionClick();

@@ -11,7 +11,6 @@ import 'package:Aera/group_chat.dart' hide SECRET_MARKER;
 import 'package:Aera/login_page.dart';
 import 'package:Aera/lotties_.dart';
 import 'package:Aera/main.dart';
-import 'package:Aera/model/embedding_service.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 // import 'package:Aera/main.dart';
@@ -39,7 +38,7 @@ Map<String, bool> onlineUsers = {};
 late String name_change;
 bool readonly = true;
 String vector = "onkar";
-bool img_uploaded = true ;
+bool img_uploaded = true;
 
 class MyHomePage extends StatefulWidget {
   final VoidCallback toggleTheme;
@@ -76,6 +75,20 @@ class _MyHomePageState extends State<MyHomePage> {
   //////   chatlist widget  //////
   Widget chat_list(int num) {
     final user = FirebaseAuth.instance.currentUser!.email;
+    bool msgSeen = true;
+    final rawMsgSeen = all_msg_list
+        .value["chats"][all_contacts
+            .value["contacts"][num]["chat_id"]]["messages"]
+        .last["msg_seen"];
+    if (rawMsgSeen is Map<String, dynamic>) {
+      msgSeen = rawMsgSeen[user];
+    } else if (rawMsgSeen is String) {
+      try {
+        msgSeen = jsonDecode(rawMsgSeen)[user];
+      } catch (e) {
+        msgSeen = true;
+      }
+    }
     bool isOnline =
         onlineUsers[all_contacts.value["contacts"][num]["id"]] ?? false;
     return Center(
@@ -345,12 +358,23 @@ class _MyHomePageState extends State<MyHomePage> {
                                     child: Text(
                                       overflow: TextOverflow.ellipsis,
                                       maxLines: 1,
-                                      all_contacts
-                                              .value["contacts"][num]["last_msg"]
-                                              .contains(SECRET_MARKER)
-                                          ? " ◯ Image"
-                                          : all_contacts
-                                                .value["contacts"][num]["last_msg"].toString().split("rpy").last,
+                                      all_msg_list.value["chats"][all_contacts
+                                                  .value["contacts"][num]["chat_id"]] !=
+                                              null
+                                          ? (all_msg_list
+                                                    .value["chats"][all_contacts
+                                                        .value["contacts"][num]["chat_id"]]["messages"]
+                                                    .last["msg"]
+                                                    .contains(SECRET_MARKER)
+                                                ? " ◯ Image"
+                                                : all_msg_list
+                                                      .value["chats"][all_contacts
+                                                          .value["contacts"][num]["chat_id"]]["messages"]
+                                                      .last["msg"]
+                                                      .toString()
+                                                      .split("rpy")
+                                                      .last)
+                                          : "",
                                       style: GoogleFonts.exo2(
                                         fontSize: 13.5,
                                         color: const Color.fromARGB(
@@ -379,16 +403,10 @@ class _MyHomePageState extends State<MyHomePage> {
                         // ),
                         SizedBox(width: 10),
 
-                        // SizedBox(width: 25),
-                        // !contacts["contacts"][num]["msg_seen"]
-                        //     ? Text("🚀", style: TextStyle(fontSize: 15))
-                        //     // ?Icon(Icons.mark_email_unread,color: Color.fromARGB(
-                        //     //               255,
-                        //     //               0,
-                        //     //               255,
-                        //     //               106,
-                        //     //             ),)
-                        //     : SizedBox.shrink(),
+                        SizedBox(width: 25),
+                        (!msgSeen
+                            ? Text("🚀", style: TextStyle(fontSize: 15))
+                            : SizedBox.shrink()),
                       ],
                     ),
                   ),
@@ -508,17 +526,9 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {});
   }
 
-  Future<void> initEmbedding() async {
-    await emb.init();
-    setState(() {
-      isReady = true;
-    });
-  }
-
   @override
   void initState() {
     super.initState();
-    // initEmbedding();
     chatApi.fetch_api();
     fetch_on_contacts();
     all_chats_list();
@@ -564,7 +574,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final isdark = Theme.of(context).brightness == Brightness.dark;
     final TextEditingController namechange = TextEditingController();
     final TextEditingController vecontroller = TextEditingController();
-   
+
     namechange.text = FirebaseAuth.instance.currentUser!.displayName ?? "Aera";
     return Scaffold(
       drawerEnableOpenDragGesture: false,
@@ -587,7 +597,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         borderRadius: BorderRadiusGeometry.circular(20),
                         child: CachedNetworkImage(
                           filterQuality: FilterQuality.high,
-                          imageUrl: FirebaseAuth.instance.currentUser!.photoURL!,
+                          imageUrl:
+                              FirebaseAuth.instance.currentUser!.photoURL!,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => const Center(
                             child: SizedBox(
@@ -610,46 +621,77 @@ class _MyHomePageState extends State<MyHomePage> {
                         ),
                       ),
                     ),
-                    !img_uploaded?Align(alignment: AlignmentGeometry.center,child: CircularProgressIndicator(color: Colors.black,)):SizedBox.shrink(),
-                    Align(
-                      child: Positioned(
-                      right: -5,
-                      top: -5,
-                      child: IconButton(
-                        onPressed: () async {
-                          final user = FirebaseAuth.instance.currentUser;
-                          if (user == null) {
-                            throw Exception('User not logged in');
-                          }
-                          HapticFeedback.selectionClick();
-                          final File? image = await pickImageFromGallery();
-                          if (image != null) {
-                            setState(() {
-                              selectedImage = image;
-                              img_uploaded = false;
-                            });
-                          }
-                          final bytes = await selectedImage!.readAsBytes();
-                          final url = await chatApi.uploadImageBase64(
-                            base64Encode(bytes),
-                          );
-                          
-                          print(url);
-                          await FirebaseAuth.instance.currentUser!.updatePhotoURL(
-                            url,
-                          );
-                          img_uploaded = true;
-                          setState(() {
-                          });
-                          setState(() {});
-                          await Supabase.instance.client
-                              .from('users')
-                              .update({'user_id': user.email, 'profile_pic': url})
-                              .eq('user_id', user.email!);
-                        },
-                        icon: Icon(Icons.edit, size: 35, color: Colors.black),
+                    // !img_uploaded?Align(alignment: AlignmentGeometry.center,child: CircularProgressIndicator(color: Colors.black,)):SizedBox.shrink(),
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Align(
+                        alignment: AlignmentGeometry.centerRight,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null) {
+                              throw Exception('User not logged in');
+                            }
+                            HapticFeedback.selectionClick();
+                            final File? image = await pickImageFromGallery();
+                            if (image != null) {
+                              setState(() {
+                                selectedImage = image;
+                                img_uploaded = false;
+                              });
+                            }
+                            final bytes = await selectedImage!.readAsBytes();
+                            final url = await chatApi.uploadImageBase64(
+                              base64Encode(bytes),
+                            );
+
+                            print(url);
+                            await FirebaseAuth.instance.currentUser!
+                                .updatePhotoURL(url);
+                            img_uploaded = true;
+                            setState(() {});
+                            setState(() {});
+                            await Supabase.instance.client
+                                .from('users')
+                                .update({
+                                  'user_id': user.email,
+                                  'profile_pic': url,
+                                })
+                                .eq('user_id', user.email!);
+                          },
+                          child: !img_uploaded
+                              ? SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 1,
+                                  ),
+                                )
+                              : Icon(
+                                  Icons.edit,
+                                  size: 25,
+                                  color: const Color.fromARGB(
+                                    255,
+                                    255,
+                                    255,
+                                    255,
+                                  ),
+                                ),
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadiusGeometry.circular(15),
+                            ),
+                            backgroundColor: const Color.fromARGB(
+                              255,
+                              58,
+                              83,
+                              134,
+                            ),
+                            elevation: 7,
+                          ),
+                        ),
                       ),
-                                        ),
                     ),
                   ],
                 ),
@@ -842,16 +884,16 @@ class _MyHomePageState extends State<MyHomePage> {
             borderRadius: BorderRadius.circular(17),
             onTap: () async {
               HapticFeedback.heavyImpact();
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) {
-                    return ChatbotPage();
-                  },
-                ),
-              );
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) {
+              //       return ChatbotPage();
+              //     },
+              //   ),
+              // );
               // final a = await chatApi.deleteMsgforuser("onkar.gaikwad@iitgn.ac.in__onkargaikwad3319@gmail.com", 1258);
-              // print(a);
+              print(all_msg_list.value);
             },
             child: CircleAvatar(
               maxRadius: 15,

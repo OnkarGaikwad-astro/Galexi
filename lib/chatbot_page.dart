@@ -226,7 +226,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
               print("📸📸📸 ");
               otherUserTyping = false;
               setState(() {});
-              receivedsound();
+              // receivedsound();
             }
             if (newMsg["sender_id"] == myUserId) {
               print("object🚀 ");
@@ -320,7 +320,7 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
                           ),
                         ),
                       ),
-                      SizedBox(width: 10),
+                      SizedBox(width: 20),
                       SizedBox(
                         width: 150,
                         child: Column(
@@ -341,18 +341,18 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
                           ],
                         ),
                       ),
-                      Switch(
-                        // inactiveThumbColor: kInputBorder,
-                        inactiveTrackColor: kBackground,
-                        activeColor: const Color.fromARGB(255, 44, 183, 248),
-                        value: isollama,
-                        onChanged: (value) {
-                          print("ollama");
-                          isollama = value;
-                          print(isollama);
-                          setState(() {});
-                        },
-                      ),
+                      // Switch(
+                      //   // inactiveThumbColor: kInputBorder,
+                      //   inactiveTrackColor: kBackground,
+                      //   activeColor: const Color.fromARGB(255, 44, 183, 248),
+                      //   value: isollama,
+                      //   onChanged: (value) {
+                      //     print("ollama");
+                      //     isollama = value;
+                      //     print(isollama);
+                      //     setState(() {});
+                      //   },
+                      // ),
                       // SizedBox(width: 10,)
                     ],
                   ),
@@ -842,77 +842,85 @@ class _ChatbotPageState extends State<ChatbotPage> with WidgetsBindingObserver {
               // color: Color(0xFF5BB9A8),
               color: Color.fromARGB(255, 130, 158, 190),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4),
-              child: IntrinsicWidth(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                        color: kDivider,
-                      ),
-                      constraints: BoxConstraints(maxHeight: 105),
-                      child: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  your_name == msg[0].trim() ? "You" : msg[0],
-                                  overflow: TextOverflow.ellipsis,
-                                  style: GoogleFonts.exo2(
-                                    // color: const Color.fromARGB(255, 2, 194, 174),
-                                    color: kTextSecondary,
-                                    fontWeight: FontWeight.w600,
+            child: IntrinsicWidth(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(255, 37, 250, 90),
+                      borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),topLeft: Radius.circular(15),bottomRight: Radius.circular(13))
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 3),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.only(bottomLeft: Radius.circular(15),topLeft: Radius.circular(15),bottomRight: Radius.circular(15)),
+                          color: kDivider,
+                        ),
+                        constraints: BoxConstraints(maxHeight: 105),
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    your_name == msg[0].trim() ? "You" : msg[0],
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.exo2(
+                                      // color: const Color.fromARGB(255, 2, 194, 174),
+                                      color: const Color.fromARGB(255, 162, 218, 251),
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
-                              ),
+                           
                               Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
-                                  msg[1],
+                                  msg[1].trim(),
                                   softWrap: true,
                                   style: GoogleFonts.josefinSans(
                                     color: Colors.white,
                                   ),
                                 ),
                               ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                    // SizedBox(height: 5),
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(3.0),
-                        child: Align(
-                          alignment: Alignment.topLeft,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(maxHeight: 150),
-                            child: SingleChildScrollView(
-                              child: Text(
-                                msg[2],
-                                style: GoogleFonts.josefinSans(
-                                  color: Colors.black,
-                                ),
+                  ),
+                  // SizedBox(height: 5),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0,vertical: 2),
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxHeight: 150),
+                          child: SingleChildScrollView(
+                            child: Text(
+                              msg[2].trim(),
+                              style: GoogleFonts.josefinSans(
+                                color: Colors.black,
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  
+                ],
               ),
             ),
           ),

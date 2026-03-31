@@ -68,7 +68,7 @@ class _MessageTileState extends State<MessageTile>
           SlidableAction(
             onPressed: null,
             borderRadius: BorderRadius.all(Radius.circular(20)),
-            backgroundColor: Color.fromARGB(158, 33, 243, 61),
+            backgroundColor: Color.fromARGB(148, 0, 255, 162),
             spacing: BorderSide.strokeAlignOutside,
             icon: Icons.reply,
             // label: 'Reply',

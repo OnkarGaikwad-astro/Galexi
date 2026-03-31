@@ -25,7 +25,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 bool Isdark = true;
-bool isvec = true;
+bool isvec = false;
 bool isSelecting = false;
 List selected_items = [];
 bool imagesent = true;
@@ -91,7 +91,6 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     } else {
       chat = Map<String, dynamic>.from(result);
     }
-    // msg_sent = true;
     setState(() {});
   }
 
@@ -107,11 +106,11 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
     final email = await FirebaseAuth.instance.currentUser?.email;
     await chatApi.addMessageFast(email!, widget.ID, msg, chatId, type);
     print("📖📖📖📖📖📖📖 ");
-    setState(() {
       msg_sent = true;
       temp_msg = "";
       isreplying = false;
       replyid = -1;
+    setState(() {
     });
     if (msg != "") playClick();
     user_contact();     
@@ -2783,30 +2782,17 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
 
   Future<void> gemini(String prompt) async {
     chatApi.fetch_api();
-    // String vec = "";
-    // if (isvec) {
-    //   final queryEmbedding = await emb.generateEmbedding(
-    //     prompt.split("@Aurex")[1],
-    //   );
-    //   final resp = await Supabase.instance.client.rpc(
-    //     'match_messages',
-    //     params: {
-    //       'query_embedding': queryEmbedding,
-    //       'match_count': 10,
-    //       "chat_id_filter": chatId,
-    //     },
-    //   );
-    //   vec = resp.toString();
-    // } else {
-    //   final similars = await Supabase.instance.client
-    //       .from('messages')
-    //       .select('msg')
-    //       .eq('chat_id', chatId)
-    //       .filter('msg', 'ilike', '%${prompt.split("@Aurex")[1]}%')
-    //       .limit(10);
-    //   vec = similars.toString();
-    // }
-    // print("\n\n\n\n $vec  \n\n\n");
+    String vec = "";
+    if (isvec){
+      final similars = await Supabase.instance.client
+          .from('messages')
+          .select('msg')
+          .eq('chat_id', chatId)
+          .filter('msg', 'ilike', '%${prompt.split("@Aurex")[1]}%')
+          .limit(10);
+      vec = similars.toString();
+    }
+    print("\n\n\n\n $vec  \n\n\n");
     print("asking 🚀🚀");
     String res = "Error";
     for (String apiKey in api_keys.value) {
@@ -2825,8 +2811,7 @@ class _ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
                   {
                     "text":
                         prompt.split("@Aurex")[1] +
-                        // vec +
-                        "among the given pair of msg and similarities i have ordered it from my previous convo and find most similar via vectors so answer using this to the question and ignore the sentence which contains @Aurex" +
+                        (isvec?vec + "among the given pair of msg and similarities i have ordered it from my previous convo and find most similar via vectors so answer using this to the question and ignore the sentence which contains @Aurex":"") +
                         " imagine u as an ai build by astro and named Aurex of u and u are an commercial ai mode build for an app named aera, dont always mention all info about u just give answers which was asked and must have frendly tone dont give long info give just main info",
                   },
                 ],
