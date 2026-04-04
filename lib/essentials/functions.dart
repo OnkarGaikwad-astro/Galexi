@@ -500,16 +500,25 @@ Future<Map<String, dynamic>> getUsers({int page = 0, int limit = 20}) async {
         );
   }
 
-  Future<String?> _findChat(String a, String b) async {
-    final r = await _db
-        .from('messages')
-        .select('chat_id')
-        .or(
-          'and(sender_id.eq.$a,receiver_id.eq.$b),and(sender_id.eq.$b,receiver_id.eq.$a)',
-        )
-        .limit(1);
-    return r.isEmpty ? null : r.first['chat_id'];
-  }
+  // Future<String?> _findChat(String a, String b) async {
+  //   final r = await _db
+  //       .from('messages')
+  //       .select('chat_id')
+  //       .or(
+  //         'and(sender_id.eq.$a,receiver_id.eq.$b),and(sender_id.eq.$b,receiver_id.eq.$a)',
+  //       )
+  //       .limit(1);
+  //   return r.isEmpty ? null : r.first['chat_id'];
+  // }
+
+
+
+//// get group members ////
+Future<List<Map<String, dynamic>>> getGroupMembers(String chatid)async{
+  final data = await _db.from("user_contacts").select("members,profile_pic,name").eq("chat_id", chatid);
+  print(data);
+  return data ;
+}
 
   /////  add message   /////
   String buildChatId(String a, String b) {
@@ -599,7 +608,7 @@ Future<Map<String, dynamic>> getUsers({int page = 0, int limit = 20}) async {
     final user = FirebaseAuth.instance.currentUser!.email;
     final chatId = buildChatId(sender, receiver);
     updatelastmsg(chatId, msg);
-    final members = ["chatbot", user];
+    final members = [user];
 
     await _db.from('messages').insert({
       'chat_id': chatId,
@@ -774,7 +783,7 @@ Future<Map<String, dynamic>> getUsers({int page = 0, int limit = 20}) async {
         .single();
 
     List<String> members = List<String>.from(data['members']);
-    if (!members.contains("chatbot")) members.add("chatbot");
+    // if (!members.contains("chatbot")) members.add("chatbot");
     if (!members.contains(newUserId)) {
       members.add(newUserId);
       print(members);
@@ -815,7 +824,7 @@ Future<Map<String, dynamic>> getUsers({int page = 0, int limit = 20}) async {
   ) async {
     final email = FirebaseAuth.instance.currentUser?.email;
     List<dynamic> members = List.from(users);
-    if (!members.contains("chatbot")) members.add("chatbot");
+    // if (!members.contains("chatbot")) members.add("chatbot");
     if (!members.contains(email)) members.add(email);
     print("\n  \n  \n");
     print(members);

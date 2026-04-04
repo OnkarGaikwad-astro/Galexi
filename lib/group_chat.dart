@@ -7,6 +7,7 @@ import 'package:Aera/chatbot_page.dart';
 import 'package:Aera/essentials/colours.dart';
 import 'package:Aera/essentials/data.dart';
 import 'package:Aera/essentials/slide.dart';
+import 'package:Aera/group_info.dart';
 import 'package:Aera/home_page.dart';
 import 'package:Aera/main.dart' hide isdark;
 import 'package:audioplayers/audioplayers.dart';
@@ -334,164 +335,168 @@ class _GroupChatState extends State<GroupChat> with WidgetsBindingObserver {
                     onTap: () {
                       HapticFeedback.selectionClick();
                       print("BAR PRESSED 🚀");
-                      showDialog(
-                        context: context,
-                        builder: (context) {
-                          return Dialog(
-                            child: Builder(
-                              builder: (context) {
-                                const double imageSize = 300;
+                      // showDialog(
+                      //   context: context,
+                      //   builder: (context) {
+                      //     return Dialog(
+                      //       child: Builder(
+                      //         builder: (context) {
+                      //           const double imageSize = 300;
 
-                                final double dpr = MediaQuery.of(
-                                  context,
-                                ).devicePixelRatio;
+                      //           final double dpr = MediaQuery.of(
+                      //             context,
+                      //           ).devicePixelRatio;
 
-                                String highQualityUrl(String url) {
-                                  return url.replaceAll(
-                                    RegExp(r's\d+-c'),
-                                    's800-c',
-                                  );
-                                }
+                      //           String highQualityUrl(String url) {
+                      //             return url.replaceAll(
+                      //               RegExp(r's\d+-c'),
+                      //               's800-c',
+                      //             );
+                      //           }
 
-                                return Container(
-                                  // height: 430,
-                                  padding: const EdgeInsets.all(2),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Hero(
-                                        tag:
-                                            contacts["contacts"][contacts["contacts"]
-                                                .indexWhere(
-                                                  (e) =>
-                                                      e['chat_id'] == widget.ID,
-                                                )]["name"],
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          child: RepaintBoundary(
-                                            child: CachedNetworkImage(
-                                              imageUrl: highQualityUrl(
-                                                contacts["contacts"][contacts["contacts"]
-                                                    .indexWhere(
-                                                      (e) =>
-                                                          e['chat_id'] ==
-                                                          widget.ID,
-                                                    )]["profile_pic"],
-                                              ),
-                                              width: imageSize,
-                                              height: imageSize,
-                                              fit: BoxFit.contain,
-                                              filterQuality: FilterQuality.high,
-                                              memCacheWidth: (imageSize * dpr)
-                                                  .round(),
-                                              memCacheHeight: (imageSize * dpr)
-                                                  .round(),
-                                              fadeInDuration: Duration.zero,
-                                              fadeOutDuration: Duration.zero,
-                                              placeholder: (context, url) =>
-                                                  const SizedBox(
-                                                    height: 300,
-                                                    child: Center(
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                          ),
-                                                    ),
-                                                  ),
-                                              errorWidget:
-                                                  (context, url, error) =>
-                                                      const Icon(
-                                                        Icons.broken_image,
-                                                        size: 40,
-                                                      ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 3),
-                                      Text(
-                                        contacts["contacts"][contacts["contacts"]
-                                            .indexWhere(
-                                              (e) => e['chat_id'] == widget.ID,
-                                            )]["name"],
-                                        style: TextStyle(
-                                          fontFamily: "times new roman",
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                      SizedBox(
-                                        height: 12,
-                                        child: Text(
-                                          widget.ID,
-                                          style: TextStyle(fontSize: 7),
-                                        ),
-                                      ),
-                                      contacts["contacts"][contacts["contacts"]
-                                                  .indexWhere(
-                                                    (e) =>
-                                                        e['chat_id'] ==
-                                                        widget.ID,
-                                                  )]["bio"] ==
-                                              ""
-                                          ? SizedBox.shrink()
-                                          : Padding(
-                                              padding: const EdgeInsets.all(
-                                                4.0,
-                                              ),
-                                              child: Container(
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                      BorderRadius.circular(15),
-                                                  color: kPrimaryVariant,
-                                                ),
-                                                width: 300,
-                                                child: Column(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Text(
-                                                      "  Bio :",
-                                                      style: TextStyle(
-                                                        fontFamily: "cursive",
-                                                        fontWeight:
-                                                            FontWeight.w800,
-                                                      ),
-                                                    ),
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.only(
-                                                            left: 6,
-                                                            right: 6,
-                                                            bottom: 4,
-                                                          ),
-                                                      child: Text(
-                                                        contacts["contacts"][contacts["contacts"]
-                                                            .indexWhere(
-                                                              (e) =>
-                                                                  e['chat_id'] ==
-                                                                  widget.ID,
-                                                            )]["bio"],
-                                                        style: TextStyle(
-                                                          fontFamily:
-                                                              "times new roman",
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                      SizedBox(height: 7),
-                                    ],
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                      );
+                      //           return Container(
+                      //             // height: 430,
+                      //             padding: const EdgeInsets.all(2),
+                      //             child: Column(
+                      //               mainAxisSize: MainAxisSize.min,
+                      //               children: [
+                      //                 Hero(
+                      //                   tag:
+                      //                       contacts["contacts"][contacts["contacts"]
+                      //                           .indexWhere(
+                      //                             (e) =>
+                      //                                 e['chat_id'] == widget.ID,
+                      //                           )]["name"],
+                      //                   child: ClipRRect(
+                      //                     borderRadius: BorderRadius.circular(
+                      //                       20,
+                      //                     ),
+                      //                     child: RepaintBoundary(
+                      //                       child: CachedNetworkImage(
+                      //                         imageUrl: highQualityUrl(
+                      //                           contacts["contacts"][contacts["contacts"]
+                      //                               .indexWhere(
+                      //                                 (e) =>
+                      //                                     e['chat_id'] ==
+                      //                                     widget.ID,
+                      //                               )]["profile_pic"],
+                      //                         ),
+                      //                         width: imageSize,
+                      //                         height: imageSize,
+                      //                         fit: BoxFit.contain,
+                      //                         filterQuality: FilterQuality.high,
+                      //                         memCacheWidth: (imageSize * dpr)
+                      //                             .round(),
+                      //                         memCacheHeight: (imageSize * dpr)
+                      //                             .round(),
+                      //                         fadeInDuration: Duration.zero,
+                      //                         fadeOutDuration: Duration.zero,
+                      //                         placeholder: (context, url) =>
+                      //                             const SizedBox(
+                      //                               height: 300,
+                      //                               child: Center(
+                      //                                 child:
+                      //                                     CircularProgressIndicator(
+                      //                                       strokeWidth: 2,
+                      //                                     ),
+                      //                               ),
+                      //                             ),
+                      //                         errorWidget:
+                      //                             (context, url, error) =>
+                      //                                 const Icon(
+                      //                                   Icons.broken_image,
+                      //                                   size: 40,
+                      //                                 ),
+                      //                       ),
+                      //                     ),
+                      //                   ),
+                      //                 ),
+                      //                 const SizedBox(height: 3),
+                      //                 Text(
+                      //                   contacts["contacts"][contacts["contacts"]
+                      //                       .indexWhere(
+                      //                         (e) => e['chat_id'] == widget.ID,
+                      //                       )]["name"],
+                      //                   style: TextStyle(
+                      //                     fontFamily: "times new roman",
+                      //                     fontSize: 10,
+                      //                   ),
+                      //                 ),
+                      //                 SizedBox(
+                      //                   height: 12,
+                      //                   child: Text(
+                      //                     widget.ID,
+                      //                     style: TextStyle(fontSize: 7),
+                      //                   ),
+                      //                 ),
+                      //                 contacts["contacts"][contacts["contacts"]
+                      //                             .indexWhere(
+                      //                               (e) =>
+                      //                                   e['chat_id'] ==
+                      //                                   widget.ID,
+                      //                             )]["bio"] ==
+                      //                         ""
+                      //                     ? SizedBox.shrink()
+                      //                     : Padding(
+                      //                         padding: const EdgeInsets.all(
+                      //                           4.0,
+                      //                         ),
+                      //                         child: Container(
+                      //                           decoration: BoxDecoration(
+                      //                             borderRadius:
+                      //                                 BorderRadius.circular(15),
+                      //                             color: kPrimaryVariant,
+                      //                           ),
+                      //                           width: 300,
+                      //                           child: Column(
+                      //                             crossAxisAlignment:
+                      //                                 CrossAxisAlignment.start,
+                      //                             children: [
+                      //                               Text(
+                      //                                 "  Bio :",
+                      //                                 style: TextStyle(
+                      //                                   fontFamily: "cursive",
+                      //                                   fontWeight:
+                      //                                       FontWeight.w800,
+                      //                                 ),
+                      //                               ),
+                      //                               Padding(
+                      //                                 padding:
+                      //                                     const EdgeInsets.only(
+                      //                                       left: 6,
+                      //                                       right: 6,
+                      //                                       bottom: 4,
+                      //                                     ),
+                      //                                 child: Text(
+                      //                                   contacts["contacts"][contacts["contacts"]
+                      //                                       .indexWhere(
+                      //                                         (e) =>
+                      //                                             e['chat_id'] ==
+                      //                                             widget.ID,
+                      //                                       )]["bio"],
+                      //                                   style: TextStyle(
+                      //                                     fontFamily:
+                      //                                         "times new roman",
+                      //                                   ),
+                      //                                 ),
+                      //                               ),
+                      //                             ],
+                      //                           ),
+                      //                         ),
+                      //                       ),
+                      //                 SizedBox(height: 7),
+                      //               ],
+                      //             ),
+                      //           );
+                      //         },
+                      //       ),
+                      //     );
+                      //   },
+                      // );
+                    Navigator.push(context, MaterialPageRoute(builder: 
+                    (context) {
+                      return GroupInfo(chatId: widget.ID,);
+                    },));
                     },
                     child: Row(
                       children: [

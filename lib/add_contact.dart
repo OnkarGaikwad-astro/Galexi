@@ -296,6 +296,7 @@ class _AddContactState extends State<AddContact> {
                 children: [
                   SizedBox(height: 18),
                   TextField(
+                    style: GoogleFonts.josefinSans(),
                     controller: jcode,
                     cursorColor: isdark
                         ? const Color.fromARGB(255, 122, 218, 238)
